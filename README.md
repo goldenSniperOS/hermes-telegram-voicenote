@@ -60,7 +60,9 @@ Then restart the gateway (send `/restart` from Telegram).
 
 ### Recommended configuration
 
-Pin a fast model for the spoken script, so a slow main model does not delay it:
+Pin a fast model for the spoken script. Without it, the script is written by
+your **main model**; with a large model that adds 5-10 seconds to every voice
+note (the text reply is never affected):
 
 ```bash
 hermes config set auxiliary.voicenote_script.provider <provider>
@@ -73,8 +75,17 @@ Use a voice that matches the script language, for example with Edge TTS:
 hermes config set tts.edge.voice es-MX-DaliaNeural
 ```
 
-If you previously added voice-note rules to `SOUL.md`, memory, or a skill,
-remove them. Otherwise the agent may also send its own audio.
+### Checklist for a new agent
+
+1. Install and enable the plugin, then `/restart` the gateway.
+2. Pin `auxiliary.voicenote_script` to a fast model.
+3. Run `/voice off` in the chat, so the built-in voice mode does not send a second audio.
+4. Remove any voice-note rules from `SOUL.md`, memory, or skills. Otherwise the
+   agent may also call `text_to_speech` on its own.
+5. Send a message. Text arrives first; the voice note follows a few seconds later.
+
+Found a problem? Open a **Field report** issue with the plugin version, Hermes
+version, and the `telegram-voicenote` lines from `~/.hermes/logs/gateway.log`.
 
 ## Usage
 
@@ -122,6 +133,10 @@ uv venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
 ruff check . && pytest
 hermes plugins doctor . --ci   # validates against the real Hermes runtime
+
+# Real end-to-end run: loads the plugin through Hermes in a throwaway
+# HERMES_HOME and delivers one voice note to the given chat.
+~/.hermes/hermes-agent/venv/bin/python scripts/smoke_e2e.py --chat-id <telegram-chat-id>
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch model and release process.

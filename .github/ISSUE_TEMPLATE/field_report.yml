@@ -1,0 +1,46 @@
+name: Field report
+description: The plugin misbehaved on a real agent (missing, late, duplicated, or wrong voice note)
+labels: [field-report, needs-triage]
+body:
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: Symptom
+      options:
+        - No voice note arrived
+        - Voice note arrived twice
+        - Voice note was late
+        - Script was wrong or read Markdown aloud
+        - Narrated something that was not my reply
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you sent, what you got, and what you expected.
+    validations:
+      required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version (/voicenote)
+    validations:
+      required: true
+  - type: input
+    id: hermes-version
+    attributes:
+      label: Hermes version (hermes --version)
+    validations:
+      required: true
+  - type: input
+    id: models
+    attributes:
+      label: Main model and auxiliary.voicenote_script model
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: grep telegram-voicenote ~/.hermes/logs/gateway.log | tail -30
+      render: text

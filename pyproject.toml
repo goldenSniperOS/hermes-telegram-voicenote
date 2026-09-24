@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hermes-telegram-voicenote"
-version = "0.2.0"
+version = "0.3.0"
 description = "Hermes Agent plugin that attaches a Telegram voice note to responses."
 readme = "README.md"
 requires-python = ">=3.11"

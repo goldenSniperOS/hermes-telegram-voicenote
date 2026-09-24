@@ -6,8 +6,18 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-23
+
+First release intended for field use on real agents.
+
+### Added
+- `scripts/smoke_e2e.py`: loads the plugin through Hermes' own plugin manager in a
+  throwaway `HERMES_HOME` and delivers one real voice note, including a dedup check.
+- "Field report" issue form and a field-testing loop in CONTRIBUTING.
+
 ### Documentation
-- README: explain why the built-in `/voice tts` mode is not enough, and warn against enabling both.
+- README: why the built-in `/voice tts` mode is not enough, a new-agent checklist,
+  and the latency cost of not pinning `auxiliary.voicenote_script`.
 
 ## [0.2.0] - 2026-09-23
 

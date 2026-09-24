@@ -13,6 +13,18 @@ Thanks for helping improve this plugin. Issues and pull requests are welcome.
 | `release/vX.Y.Z` | Release preparation, branched from `develop`, merged into `main`. |
 | `hotfix/<topic>` | Urgent fixes, branched from `main`, merged into `main` and `develop`. |
 
+## Field-testing loop
+
+This plugin improves from real use on real agents:
+
+1. Install the latest release on an agent and use it normally.
+2. When something is off, open a **Field report** issue (or note it and bring
+   it back to the maintainer session).
+3. Each report becomes a `fix/*` or `feat/*` branch, a PR to `develop`, and a
+   regression test that reproduces it.
+4. Fixes ship in the next release; agents update with
+   `hermes plugins update telegram-voicenote`.
+
 ## Workflow
 
 1. Open or pick an issue.
