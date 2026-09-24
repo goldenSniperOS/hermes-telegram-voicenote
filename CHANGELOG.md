@@ -6,6 +6,17 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-23
+
+### Fixed
+- If the plugin is registered twice in one process (for example after a plugin
+  reload), a reply was voiced twice. The idempotency guard is now shared by every
+  registration in the process.
+
+### Changed
+- `scripts/smoke_e2e.py` now lets Hermes discover the plugin like the gateway does,
+  and counts real deliveries instead of live threads.
+
 ## [0.4.0] - 2026-09-23
 
 First public release.

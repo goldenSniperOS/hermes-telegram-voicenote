@@ -7,6 +7,7 @@ from typing import Any
 
 from . import delivery
 from .delivery import Target
+from .guard import process_guard
 from .pipeline import Ports, VoiceNotePipeline
 from .settings import Settings
 
@@ -131,6 +132,7 @@ def register(ctx: Any) -> None:
             script_writer=writer,
         ),
         is_muted=mutes.is_muted,
+        guard=process_guard(),
     )
     ctx.register_hook("transform_llm_output", pipeline.on_llm_output)
     ctx.register_command(

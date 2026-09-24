@@ -61,6 +61,17 @@ def main() -> int:
         from hermes_cli.env_loader import load_hermes_dotenv
 
         load_hermes_dotenv()
+
+        # Count real deliveries from the plugin's own log line: this is exactly
+        # what the user would see in the chat, independent of thread timing.
+        deliveries: list[str] = []
+
+        class _DeliveryCounter(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                if "telegram-voicenote: delivered to" in record.getMessage():
+                    deliveries.append(record.getMessage())
+
+        logging.getLogger().addHandler(_DeliveryCounter())
         logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
         logging.getLogger("hermes_telegram_voicenote").setLevel(logging.INFO)
         for name in list(logging.root.manager.loggerDict):
@@ -72,12 +83,17 @@ def main() -> int:
         # Use the process-global manager: ctx.llm checks auxiliary-task ownership
         # against it, exactly as in the running gateway.
         manager = get_plugin_manager()
-        manifests = manager._scan_directory(temp_home / "plugins", source="user")
-        assert len(manifests) == 1, f"expected one manifest, got {manifests}"
-        manager._load_plugin(manifests[0])
-        loaded = manager._plugins[manifests[0].key or manifests[0].name]
+        manager.discover_and_load()
+        loaded = manager._plugins.get("telegram-voicenote")
+        if loaded is None or not loaded.enabled:
+            # Not enabled in the copied config: load it explicitly, exactly once.
+            manifests = manager._scan_directory(temp_home / "plugins", source="user")
+            manager._load_plugin(manifests[0])
+            loaded = manager._plugins["telegram-voicenote"]
         assert not loaded.error, loaded.error
-        print(f"loaded: hooks={list(loaded.hooks_registered)}")
+        registered = manager._hooks.get("transform_llm_output", [])
+        ours = [cb for cb in registered if "VoiceNotePipeline" in getattr(cb, "__qualname__", "")]
+        print(f"loaded: hooks={list(loaded.hooks_registered)} registrations={len(ours)}")
 
         from gateway.session_context import set_session_vars
 
@@ -116,11 +132,12 @@ def main() -> int:
             model="smoke",
             platform="telegram",
         )
-        extra = [
-            t for t in threading.enumerate() if t.name == "telegram-voicenote" and t.is_alive()
-        ]
-        print("dedup:", "OK" if not extra else "FAIL (second worker started)")
-        return 0 if not extra else 1
+        # Give any (wrongly) scheduled second worker time to deliver.
+        time.sleep(min(args.timeout, 30))
+        print(f"deliveries: {len(deliveries)}")
+        ok = len(deliveries) == 1
+        print("dedup:", "OK" if ok else f"FAIL ({len(deliveries)} voice notes delivered)")
+        return 0 if ok else 1
     finally:
         shutil.rmtree(temp_home, ignore_errors=True)
 

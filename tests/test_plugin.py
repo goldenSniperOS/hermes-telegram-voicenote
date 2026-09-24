@@ -97,3 +97,25 @@ def test_every_setting_is_documented_in_the_manifest_and_readme():
     for f in fields(Settings):
         assert f.name in manifest["config_schema"], f"{f.name} missing from plugin.yaml"
         assert f"`{f.name}`" in readme, f"{f.name} missing from README"
+
+
+def test_double_registration_voices_a_reply_once(monkeypatch):
+    import sys
+
+    from hermes_telegram_voicenote import plugin as plugin_mod
+    from hermes_telegram_voicenote.delivery import Target
+
+    monkeypatch.delattr(sys, "_telegram_voicenote_guard", raising=False)
+    sent = []
+    monkeypatch.setattr(plugin_mod, "_resolve_target", lambda: Target("telegram", "1"))
+    monkeypatch.setattr(plugin_mod.delivery, "synthesize", lambda s, **k: "/tmp/a.ogg")
+    monkeypatch.setattr(plugin_mod.delivery, "send_voice", lambda t, p: sent.append(t))
+    monkeypatch.setattr("hermes_telegram_voicenote.pipeline._daemon", lambda fn: fn())
+    monkeypatch.setattr("hermes_telegram_voicenote.pipeline.time.sleep", lambda s: None)
+
+    first, second = FakeContext({"script_mode": "plain"}), FakeContext({"script_mode": "plain"})
+    pkg.register(first)
+    pkg.register(second)
+    for ctx in (first, second):
+        ctx.hooks["transform_llm_output"](response_text="same reply", platform="telegram")
+    assert len(sent) == 1
