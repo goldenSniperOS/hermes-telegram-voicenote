@@ -41,3 +41,10 @@ def test_version_surfaces_agree():
 def test_manifest_name_is_filename_safe():
     manifest = yaml.safe_load((ROOT / "plugin.yaml").read_text())
     assert re.fullmatch(r"[a-z0-9][a-z0-9-]*", manifest["name"])
+
+
+def test_manifest_version_is_installable():
+    # The Hermes Git installer rejects manifest_version > 1 (verified on v0.21.0),
+    # even though `hermes plugins doctor` accepts it.
+    manifest = yaml.safe_load((ROOT / "plugin.yaml").read_text())
+    assert manifest.get("manifest_version", 1) == 1

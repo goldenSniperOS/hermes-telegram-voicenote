@@ -1,7 +1,6 @@
 name: telegram-voicenote
-version: 0.1.0
-manifest_version: 2
-api_version: 1
+version: 0.1.1
+manifest_version: 1
 description: >-
   Attach an extra Telegram voice note to Hermes responses, generated with the
   TTS provider already configured in Hermes.
