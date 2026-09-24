@@ -6,6 +6,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation
+- README: explain why the built-in `/voice tts` mode is not enough, and warn against enabling both.
+
 ## [0.2.0] - 2026-09-23
 
 ### Added
