@@ -6,6 +6,26 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-23
+
+First public release.
+
+### Added
+- Settings for every user, with neutral defaults: `chat_types`, `script_mode`
+  (`llm` or `plain`), `style`, `tts_provider`, `tts_speed`, `tts_instructions`,
+  and `failure_message`.
+- `/voicenote` now shows the effective settings.
+
+### Changed
+- `language` defaults to `auto` (the language of the reply) instead of Spanish.
+- The failure notice is configurable.
+
+### Documentation
+- README rewritten for public use: the problem it solves (listening on the go),
+  why the alternatives fall short, a setup checklist, a full configuration
+  reference, troubleshooting, and security notes.
+- CODE_OF_CONDUCT added.
+
 ## [0.3.0] - 2026-09-23
 
 First release intended for field use on real agents.

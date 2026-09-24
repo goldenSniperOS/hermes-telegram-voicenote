@@ -1,7 +1,7 @@
 # Design: automatic voice notes
 
 This document consolidates two field reports from building this behavior on two
-different Hermes agents. It records the requirements, the failures that shaped
+different Hermes agents for the original author. It records the requirements, the failures that shaped
 them, and how this plugin satisfies each one.
 
 ## Problem
@@ -32,7 +32,7 @@ with anything.
 | 7 | **Spoken script, not the Markdown.** Tables, lists, and code are explained, not recited. | Both reports |
 | 8 | **Inherit the voice.** Use the TTS provider and voice already configured in Hermes. | Report B |
 | 9 | **Resilient.** A transient failure does not silently drop the audio. | Report B |
-| 10 | **Spanish** by default, for both the spoken script and the voice. | Report A |
+| 10 | **Language follows the user.** The original author works in Spanish; the public default is `language: auto` (same language as the reply). | Report A |
 
 ### Resolved contradiction: "synchronous" vs "asynchronous"
 
@@ -94,12 +94,21 @@ transform_llm_output hook ──► returns None (text is untouched and sent now
   voice-note instructions from `SOUL.md`, memory, and skills. Otherwise the model
   also calls `text_to_speech` and the user gets two audios.
 
+## From personal presets to public settings
+
+The first versions encoded the original author's preferences (Spanish scripts,
+a specific script model). Before publishing, every preference became a setting
+with a neutral default, so any user can decide *when* voice notes are sent
+(`chat_types`, `min_response_chars`), *what* is said (`script_mode`, `language`,
+`style`, `max_script_words`), and *how* it sounds (`tts_provider`, `tts_speed`,
+`tts_instructions`), without touching code. See the README for the full list.
+
 ## Known limits
 
 - Interrupted turns do not fire `transform_llm_output`, so they get no voice note.
 - `delivery.py` uses internal Hermes functions (`tools.tts_tool.text_to_speech_tool`,
   `tools.send_message_tool._send_to_platform`). A Hermes upgrade can move them;
   that module is intentionally the single place to adapt.
-- The voice comes from `tts.*` in Hermes. If it is an English voice
-  (for example `en-US-AriaNeural`), Spanish scripts will sound accented. Set a
-  Spanish voice such as `es-MX-DaliaNeural`.
+- The voice comes from `tts.*` in Hermes (or `tts_provider` in the plugin
+  settings). A voice for another language will sound accented; pick one that
+  matches the language you use.

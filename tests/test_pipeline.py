@@ -34,7 +34,8 @@ class Host:
             raise self.writer_output
         return self.writer_output
 
-    def _synth(self, script):
+    def _synth(self, script, **opts):
+        self.tts_opts = opts
         self.scripts.append(script)
         if self.fail_times:
             self.fail_times -= 1
@@ -124,7 +125,7 @@ def test_script_writer_failure_falls_back_to_cleaned_text():
 
 
 def test_make_script_without_writer_uses_fallback():
-    out = make_script("`code` y **texto**", None, language="Spanish", max_words=50, timeout=5)
+    out = make_script("`code` and **text**", None, language="auto", max_words=50, timeout=5)
     assert "`" not in out and "**" not in out
 
 
@@ -145,3 +146,59 @@ def test_settings_load_tolerates_bad_values():
     assert s.retries == Settings().retries
     assert s.platforms == ("telegram",)
     assert s.enabled is False
+
+
+def test_plain_mode_skips_the_llm():
+    host = Host(writer="SHOULD NOT BE USED")
+    make(host, Settings(script_mode="plain")).on_llm_output(
+        response_text="**hello** world", platform="telegram"
+    )
+    assert host.scripts and "SHOULD NOT" not in host.scripts[0]
+
+
+def test_chat_type_filter():
+    host = Host(target=Target("telegram", "-100", chat_type="group"))
+    make(host, Settings(chat_types=("dm",))).on_llm_output(response_text="hi", platform="telegram")
+    assert host.voices == []
+
+
+def test_tts_overrides_are_forwarded():
+    host = Host()
+    s = Settings(tts_provider="openai", tts_speed=1.2, tts_instructions="calm")
+    make(host, s).on_llm_output(response_text="hi", platform="telegram")
+    assert host.tts_opts == {"provider": "openai", "speed": 1.2, "instructions": "calm"}
+
+
+def test_custom_failure_message():
+    host = Host(fail_times=10)
+    s = Settings(retries=0, failure_message="Sin audio: {reason}")
+    make(host, s).on_llm_output(response_text="hi", platform="telegram")
+    assert host.texts[0][1] == "Sin audio: RuntimeError"
+
+
+def test_broken_failure_template_is_sent_verbatim():
+    host = Host(fail_times=10)
+    make(host, Settings(retries=0, failure_message="oops {nope}")).on_llm_output(
+        response_text="hi", platform="telegram"
+    )
+    assert host.texts[0][1] == "oops {nope}"
+
+
+def test_language_auto_and_explicit_and_style():
+    from hermes_telegram_voicenote.script import build_messages
+
+    auto = build_messages("hola", language="auto", max_words=50)[0]["content"]
+    fixed = build_messages("hola", language="German", max_words=50, style="be brief")[0]["content"]
+    assert "same language as the reply" in auto
+    assert "Write in German." in fixed and "be brief" in fixed
+
+
+def test_settings_defaults_are_neutral():
+    s = Settings.load(lambda k, d: d)
+    assert s.language == "auto" and s.script_mode == "llm" and s.tts_provider == ""
+
+
+def test_settings_reject_invalid_enums_and_speed():
+    raw = {"script_mode": "loud", "chat_types": ["dm", "bogus"], "tts_speed": 9}
+    s = Settings.load(lambda k, d: raw.get(k, d))
+    assert s.script_mode == "llm" and s.chat_types == ("dm",) and s.tts_speed is None

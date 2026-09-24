@@ -10,11 +10,13 @@ logger = logging.getLogger(__name__)
 
 ScriptWriter = Callable[[list[dict[str, str]], float], str]
 
-_SYSTEM_PROMPT = """You write the spoken version of a chat reply that the user will \
-listen to as a voice note.
+_SYSTEM_PROMPT = """You write the spoken version of a chat reply. The user will \
+listen to it as a voice note, often on the move, instead of reading a long answer \
+on a phone screen.
 
 Rules:
-- Write in {language}, in a warm, natural, conversational tone.
+- {language_rule}
+- Use a warm, natural, conversational tone.
 - This is a script to be heard, not read. Never read Markdown, symbols, code, \
 URLs, file paths, or table syntax aloud.
 - Explain tables, lists, and code in plain words: say what they show and why it \
@@ -25,6 +27,8 @@ formatting.
 - Maximum {max_words} words.
 - Output only the script text, with no preamble."""
 
+_AUTO_LANGUAGE = "Write in the same language as the reply."
+
 _MEDIA_LINE = re.compile(r"^\s*(MEDIA:\S+|\[\[audio_as_voice\]\]|\[\[as_document\]\])\s*$", re.M)
 
 
@@ -32,8 +36,14 @@ def strip_delivery_directives(text: str) -> str:
     return _MEDIA_LINE.sub("", text).strip()
 
 
-def build_messages(text: str, *, language: str, max_words: int) -> list[dict[str, str]]:
-    system = _SYSTEM_PROMPT.format(language=language, max_words=max_words)
+def build_messages(
+    text: str, *, language: str, max_words: int, style: str = ""
+) -> list[dict[str, str]]:
+    auto = not language or language.strip().lower() == "auto"
+    language_rule = _AUTO_LANGUAGE if auto else f"Write in {language}."
+    system = _SYSTEM_PROMPT.format(language_rule=language_rule, max_words=max_words)
+    if style:
+        system += f"\n\nAdditional style instructions from the user:\n{style}"
     return [
         {"role": "system", "content": system},
         {"role": "user", "content": strip_delivery_directives(text)},
@@ -41,7 +51,7 @@ def build_messages(text: str, *, language: str, max_words: int) -> list[dict[str
 
 
 def fallback_script(text: str, *, max_words: int) -> str:
-    """Deterministic cleanup used when the script writer is unavailable."""
+    """Deterministic cleanup, used for plain mode and when the writer fails."""
     cleaned = strip_delivery_directives(text)
     try:
         from tools.tts_text_normalize import prepare_spoken_text
@@ -62,12 +72,12 @@ def make_script(
     language: str,
     max_words: int,
     timeout: float,
+    style: str = "",
 ) -> str:
     if writer is not None:
         try:
-            script = (
-                writer(build_messages(text, language=language, max_words=max_words), timeout) or ""
-            ).strip()
+            messages = build_messages(text, language=language, max_words=max_words, style=style)
+            script = (writer(messages, timeout) or "").strip()
             if script:
                 return script
             logger.warning("telegram-voicenote: script writer returned empty text; using fallback")

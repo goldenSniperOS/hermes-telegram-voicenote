@@ -27,7 +27,17 @@ def _resolve_target() -> Target | None:
     chat_id = get_session_env("HERMES_SESSION_CHAT_ID", "")
     if not platform or not chat_id or get_session_env("HERMES_CRON_SESSION", ""):
         return None
-    return Target(platform, chat_id, get_session_env("HERMES_SESSION_THREAD_ID", ""))
+    chat_type = (get_session_env("HERMES_SESSION_CHAT_TYPE", "") or "dm").lower()
+    if chat_type in {"private", "direct"}:
+        chat_type = "dm"
+    elif chat_type in {"supergroup", "channel"}:
+        chat_type = "group"
+    return Target(
+        platform,
+        chat_id,
+        get_session_env("HERMES_SESSION_THREAD_ID", ""),
+        chat_type,
+    )
 
 
 def _is_background_review() -> bool:
@@ -82,11 +92,13 @@ def make_command(ctx: Any, mutes: _MuteStore):
                 return "Voice notes can only be toggled from a chat."
             mutes.set(target, arg == "off")
             return f"Voice notes {'disabled' if arg == 'off' else 'enabled'} for this chat."
-        settings = Settings.load(ctx.get_config)
+        s = Settings.load(ctx.get_config)
         here = "n/a" if target is None else ("off" if mutes.is_muted(target) else "on")
         return (
             f"telegram-voicenote v{__version__}: "
-            f"{'enabled' if settings.enabled else 'disabled'} globally, {here} in this chat. "
+            f"{'enabled' if s.enabled else 'disabled'} globally, {here} in this chat. "
+            f"script={s.script_mode} language={s.language} "
+            f"tts={s.tts_provider or 'default'} chats={','.join(s.chat_types)}. "
             "Usage: /voicenote [on|off]"
         )
 

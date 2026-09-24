@@ -85,3 +85,15 @@ def test_manifest_version_is_installable():
 def test_manifest_declares_the_hook():
     manifest = yaml.safe_load((ROOT / "plugin.yaml").read_text())
     assert "transform_llm_output" in manifest["provides_hooks"]
+
+
+def test_every_setting_is_documented_in_the_manifest_and_readme():
+    from dataclasses import fields
+
+    from hermes_telegram_voicenote.settings import Settings
+
+    manifest = yaml.safe_load((ROOT / "plugin.yaml").read_text())
+    readme = (ROOT / "README.md").read_text()
+    for f in fields(Settings):
+        assert f.name in manifest["config_schema"], f"{f.name} missing from plugin.yaml"
+        assert f"`{f.name}`" in readme, f"{f.name} missing from README"

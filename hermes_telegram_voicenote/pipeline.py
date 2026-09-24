@@ -22,8 +22,6 @@ from .settings import Settings
 
 logger = logging.getLogger(__name__)
 
-FAILURE_NOTICE = "I could not generate the voice note for this reply ({reason})."
-
 
 @dataclass
 class Ports:
@@ -31,7 +29,7 @@ class Ports:
 
     resolve_target: Callable[[], Target | None]
     is_background_review: Callable[[], bool]
-    synthesize: Callable[[str], str]
+    synthesize: Callable[..., str]
     send_voice: Callable[[Target, str], None]
     send_text: Callable[[Target, str], None]
     script_writer: ScriptWriter | None = None
@@ -79,6 +77,8 @@ class VoiceNotePipeline:
         target = self._ports.resolve_target()
         if target is None or target.platform not in settings.platforms:
             return None
+        if target.chat_type not in settings.chat_types:
+            return None
         if platform and platform.lower() != target.platform:
             return None
         if self._is_muted(target):
@@ -94,17 +94,24 @@ class VoiceNotePipeline:
         started = time.monotonic()
         # Let the text reply reach the chat first; the voice note always follows it.
         self._sleep(settings.start_delay)
+        writer = self._ports.script_writer if settings.script_mode == "llm" else None
         script = make_script(
             text,
-            self._ports.script_writer,
+            writer,
             language=settings.language,
             max_words=settings.max_script_words,
             timeout=settings.script_timeout,
+            style=settings.style,
         )
         last_error: Exception | None = None
         for attempt in range(settings.retries + 1):
             try:
-                audio = self._ports.synthesize(script)
+                audio = self._ports.synthesize(
+                    script,
+                    provider=settings.tts_provider,
+                    speed=settings.tts_speed,
+                    instructions=settings.tts_instructions,
+                )
                 self._ports.send_voice(target, audio)
                 logger.info(
                     "telegram-voicenote: delivered to %s in %.1fs (attempt %d)",
@@ -122,9 +129,16 @@ class VoiceNotePipeline:
         if settings.notify_on_failure:
             try:
                 reason = type(last_error).__name__ if last_error else "unknown error"
-                self._ports.send_text(target, FAILURE_NOTICE.format(reason=reason))
+                self._ports.send_text(target, _format_notice(settings.failure_message, reason))
             except Exception:
                 logger.exception("telegram-voicenote: failure notice could not be sent")
+
+
+def _format_notice(template: str, reason: str) -> str:
+    try:
+        return template.format(reason=reason)
+    except (KeyError, IndexError, ValueError):
+        return template
 
 
 def _daemon(fn: Callable[[], None]) -> None:

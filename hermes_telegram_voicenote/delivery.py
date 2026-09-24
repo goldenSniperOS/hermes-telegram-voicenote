@@ -22,9 +22,11 @@ class Target:
     platform: str
     chat_id: str
     thread_id: str = ""
+    chat_type: str = "dm"
 
     @property
     def key(self) -> str:
+        # chat_type is descriptive only; it must not change the identity of a chat.
         return f"{self.platform}:{self.chat_id}:{self.thread_id}"
 
 
@@ -32,11 +34,24 @@ class DeliveryError(RuntimeError):
     pass
 
 
-def synthesize(script: str) -> str:
-    """Render *script* with the TTS provider and voice configured in Hermes."""
+def synthesize(
+    script: str,
+    *,
+    provider: str = "",
+    speed: float | None = None,
+    instructions: str = "",
+) -> str:
+    """Render *script* with Hermes TTS. Empty options inherit the global tts.* config."""
     from tools.tts_tool import text_to_speech_tool
 
-    result = json.loads(text_to_speech_tool(script))
+    kwargs: dict = {}
+    if provider:
+        kwargs["provider"] = provider
+    if speed is not None:
+        kwargs["speed"] = speed
+    if instructions:
+        kwargs["instructions"] = instructions
+    result = json.loads(text_to_speech_tool(script, **kwargs))
     if not result.get("success"):
         raise DeliveryError(f"TTS failed: {result.get('error') or result}")
     path = result.get("file_path") or ""

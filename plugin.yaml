@@ -1,5 +1,5 @@
 name: telegram-voicenote
-version: 0.3.0
+version: 0.4.0
 manifest_version: 1
 description: >-
   Follow every Telegram reply with a native voice note, written as a spoken
@@ -11,12 +11,20 @@ tags: [telegram, voice, tts, gateway]
 config_schema:
   enabled: {type: bool, default: true, description: "Master switch for automatic voice notes"}
   platforms: {type: list, default: [telegram], description: "Platforms that receive voice notes"}
-  language: {type: str, default: Spanish, description: "Language of the spoken script"}
+  chat_types: {type: list, default: [dm, group, forum], description: "Chat types that receive voice notes"}
+  min_response_chars: {type: int, default: 1, description: "Skip replies shorter than this"}
+  start_delay: {type: float, default: 1.5, description: "Seconds to wait so the text reply lands first"}
+  script_mode: {type: str, default: llm, description: "llm (spoken explanation) or plain (cleaned reply, no model call)"}
+  language: {type: str, default: auto, description: "auto = language of the reply, or a language name"}
   max_script_words: {type: int, default: 180, description: "Upper bound for the spoken script"}
+  style: {type: str, default: "", description: "Extra style instructions for the script writer"}
+  script_timeout: {type: float, default: 90, description: "Seconds allowed for the script writer"}
+  tts_provider: {type: str, default: "", description: "TTS provider for voice notes only; empty = global tts.provider"}
+  tts_speed: {type: float, description: "Voice note speed 0.25-4.0; empty = global"}
+  tts_instructions: {type: str, default: "", description: "Voice direction for providers that support it"}
   retries: {type: int, default: 2, description: "TTS/send retries before giving up"}
   notify_on_failure: {type: bool, default: true, description: "Tell the user only when a voice note is impossible"}
-  script_timeout: {type: float, default: 90, description: "Seconds allowed for the script writer"}
-  start_delay: {type: float, default: 1.5, description: "Seconds to wait so the text reply lands first"}
+  failure_message: {type: str, description: "Failure notice text; {reason} is replaced with the error type"}
 provides_tools: []
 provides_hooks:
   - transform_llm_output
