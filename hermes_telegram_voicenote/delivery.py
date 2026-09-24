@@ -87,17 +87,41 @@ def live_gateway():
     gateway, so this is the decisive check.
     """
     try:
-        from gateway.run import _gateway_runner_ref
-
-        runner = _gateway_runner_ref()
+        import gateway.run as gateway_run
+    except Exception:
+        return None  # not a gateway install (plain CLI): nothing to warn about
+    ref = getattr(gateway_run, "_gateway_runner_ref", None)
+    if ref is None:
+        _warn_once(
+            "telegram-voicenote: gateway.run._gateway_runner_ref is missing in this Hermes "
+            "version; voice notes are disabled. Please report it."
+        )
+        return None
+    try:
+        runner = ref()
     except Exception:
         return None
     if runner is None:
         return None
-    loop = getattr(runner, "_gateway_loop", None)
+    if not hasattr(runner, "_gateway_loop"):
+        _warn_once(
+            "telegram-voicenote: GatewayRunner._gateway_loop is missing in this Hermes "
+            "version; voice notes are disabled. Please report it."
+        )
+        return None
+    loop = runner._gateway_loop
     if loop is None or loop.is_closed():
         return None
     return runner
+
+
+_warned: set[str] = set()
+
+
+def _warn_once(message: str) -> None:
+    if message not in _warned:
+        _warned.add(message)
+        logger.error(message)
 
 
 def _platform_config(platform_name: str):

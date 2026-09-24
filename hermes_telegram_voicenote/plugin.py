@@ -101,6 +101,24 @@ def _script_model(ctx: Any) -> str:
     return f"{provider}/{model}" if provider and provider != "auto" else model
 
 
+def _language_mismatch(ctx: Any) -> str:
+    try:
+        from hermes_cli.config import load_config
+
+        from .i18n import mismatch
+
+        s = Settings.load(ctx.get_config)
+        return mismatch(s.language, load_config().get("tts") or {}, s.tts_provider)
+    except Exception:
+        return ""
+
+
+def _warn_language_mismatch(ctx: Any) -> None:
+    message = _language_mismatch(ctx)
+    if message:
+        logger.warning(message)
+
+
 def make_command(ctx: Any, mutes: _MuteStore):
     from . import __version__
 
@@ -124,6 +142,11 @@ def make_command(ctx: Any, mutes: _MuteStore):
                 f"retries={s.retries} start_delay={s.start_delay}s",
                 f"chats={','.join(s.chat_types)} min_chars={s.min_response_chars} "
                 f"setkey={'on' if s.setkey_enabled else 'off'}",
+                *(
+                    [f"WARNING: {w.removeprefix('telegram-voicenote: ')}"]
+                    if (w := _language_mismatch(ctx))
+                    else []
+                ),
                 "Usage: /voicenote [on|off]",
             ]
         )
@@ -161,6 +184,7 @@ def register(ctx: Any) -> None:
         guard=process_guard(),
     )
     ctx.register_hook("transform_llm_output", pipeline.on_llm_output)
+    _warn_language_mismatch(ctx)
     if _script_model(ctx) == "main (unpinned)":
         logger.warning(
             "telegram-voicenote: auxiliary.%s is not pinned; scripts use the main "

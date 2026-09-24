@@ -190,8 +190,9 @@ Two things the style is for, because the default prompt cannot know them:
 - **Loanword pronunciation.** Non-English TTS voices mangle English technical terms.
   Spelling them phonetically in the script fixes it.
 
-Keep `language` and your TTS voice in the same language. A Spanish script through an
-`en-US` voice sounds wrong and nothing warns you.
+Keep `language` and your TTS voice in the same language. When `language` is pinned
+and the configured voice clearly belongs to another language (for example `Spanish`
+with `en-US-AriaNeural`), the plugin logs a warning at startup and `/voicenote` shows it.
 
 ### 4. All settings
 
@@ -235,7 +236,7 @@ plugins:
 | **Reliability** | | |
 | `retries` | `2` | Extra attempts when synthesis or delivery fails. |
 | `notify_on_failure` | `true` | Send one short message only when a voice note is impossible. |
-| `failure_message` | *(English)* | Text of that message. `{reason}` is replaced with the error type. It does not follow `language`; translate it yourself. |
+| `failure_message` | *(follows `language`)* | Text of that message. `{reason}` is replaced with the error type. Built in for English, Spanish, Portuguese, French, German, and Italian; set it yourself for other languages. |
 | **API keys** | | |
 | `setkey_enabled` | `false` | Allow `/setkey` in a private chat (see [Setting a key from your phone](#setting-a-key-from-your-phone-setkey)). |
 | `setkey_allowed` | *(TTS + OpenRouter keys)* | Credential names `/setkey` may write. |
@@ -255,6 +256,7 @@ plugins:
 |---|---|
 | No voice note at all | `hermes plugins list` shows `enabled`; you ran `/restart`; `/voicenote` says `on`. |
 | No voice note from a script or terminal command | By design. Voice notes are sent only from the running gateway, never from a CLI session or a subprocess that inherited chat variables. |
+| No voice notes after a Hermes upgrade, and an `ERROR ... is missing in this Hermes version` log line | The plugin relies on two Hermes internals (`gateway.run._gateway_runner_ref` and `GatewayRunner._gateway_loop`) to know it runs inside the gateway. If an upgrade renames them, voice notes stop and that error names the missing piece. Open an issue. |
 | Two voice notes per reply | Another plugin or `/voice tts` also speaks replies. Check `hermes plugins list` and the leftovers described in [Migrating from another plugin](#migrating-from-another-plugin). |
 | A long voice note arrives as several bubbles | Hermes splits long scripts; every part is sent in order. Lower `max_script_words` for one bubble. |
 | Voice note arrives as a file | Install `ffmpeg` so audio can be converted to Opus. |

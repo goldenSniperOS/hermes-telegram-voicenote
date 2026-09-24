@@ -62,21 +62,24 @@ def main() -> int:
 
         load_hermes_dotenv()
 
-        # Count real deliveries from the plugin's own log line: this is exactly
-        # what the user would see in the chat, independent of thread timing.
-        deliveries: list[str] = []
-
-        class _DeliveryCounter(logging.Handler):
-            def emit(self, record: logging.LogRecord) -> None:
-                if "telegram-voicenote: delivered to" in record.getMessage():
-                    deliveries.append(record.getMessage())
-
-        logging.getLogger().addHandler(_DeliveryCounter())
         logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
-        logging.getLogger("hermes_telegram_voicenote").setLevel(logging.INFO)
-        for name in list(logging.root.manager.loggerDict):
-            if "voicenote" in name:
-                logging.getLogger(name).setLevel(logging.INFO)
+
+        # Count real deliveries at the single boundary every pipeline instance
+        # funnels through. Log lines are not reliable: Hermes imports plugins
+        # under a namespaced package, and logger names and levels vary by host.
+        import tools.send_message_tool as send_tool
+
+        deliveries: list[str] = []
+        real_send = send_tool._send_to_platform
+
+        async def counting_send(*args, **kwargs):
+            result = await real_send(*args, **kwargs)
+            media = kwargs.get("media_files") or []
+            if media and isinstance(result, dict) and result.get("success"):
+                deliveries.extend(path for path, _voice in media)
+            return result
+
+        send_tool._send_to_platform = counting_send
 
         from hermes_cli.plugins import get_plugin_manager
 
@@ -94,6 +97,10 @@ def main() -> int:
         registered = manager._hooks.get("transform_llm_output", [])
         ours = [cb for cb in registered if "VoiceNotePipeline" in getattr(cb, "__qualname__", "")]
         print(f"loaded: hooks={list(loaded.hooks_registered)} registrations={len(ours)}")
+        # Plugin loggers exist only now, under Hermes' namespaced import.
+        for name in list(logging.root.manager.loggerDict):
+            if "voicenote" in name:
+                logging.getLogger(name).setLevel(logging.INFO)
 
         from gateway.session_context import set_session_vars
 

@@ -6,6 +6,24 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-09-23
+
+### Fixed
+- `scripts/smoke_e2e.py` always counted 0 deliveries: Hermes imports plugins under
+  a namespaced package, so the log levels set before discovery never applied. The
+  smoke now counts successful sends at `tools.send_message_tool._send_to_platform`,
+  the boundary every pipeline instance goes through, and raises plugin log levels
+  after discovery.
+- If a Hermes upgrade removes `gateway.run._gateway_runner_ref` or
+  `GatewayRunner._gateway_loop`, the plugin now logs one clear error instead of
+  silently disabling voice notes.
+
+### Changed
+- The default `failure_message` follows `language` (English, Spanish, Portuguese,
+  French, German, Italian). A custom `failure_message` still wins.
+- Warning at startup, and in `/voicenote`, when a pinned `language` does not match
+  the language of the configured TTS voice.
+
 ## [0.5.1] - 2026-09-23
 
 Fixes from three field reports.

@@ -31,3 +31,17 @@ def test_audio_paths_rejects_missing_parts(tmp_path):
 
 def test_live_gateway_is_none_outside_the_gateway():
     assert delivery.live_gateway() is None
+
+
+def test_missing_hermes_internal_warns_loudly(monkeypatch, caplog):
+    import sys
+    import types
+
+    parent, fake = types.ModuleType("gateway"), types.ModuleType("gateway.run")
+    parent.run = fake
+    monkeypatch.setitem(sys.modules, "gateway", parent)
+    monkeypatch.setitem(sys.modules, "gateway.run", fake)
+    monkeypatch.setattr(delivery, "_warned", set())
+    with caplog.at_level("ERROR"):
+        assert delivery.live_gateway() is None
+    assert "_gateway_runner_ref is missing" in caplog.text

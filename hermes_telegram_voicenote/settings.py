@@ -80,10 +80,20 @@ class Settings:
             tts_instructions=str(pick("tts_instructions", str)).strip(),
             retries=max(0, pick("retries", int)),
             notify_on_failure=pick("notify_on_failure", _to_bool),
-            failure_message=str(pick("failure_message", str)) or d.failure_message,
+            failure_message=_failure_message(get, str(pick("language", str)).strip()),
             setkey_enabled=pick("setkey_enabled", _to_bool),
             setkey_allowed=_setkey_allowed(get),
         )
+
+
+def _failure_message(get: Getter, language: str) -> str:
+    from .i18n import default_failure_message
+
+    try:
+        custom = get("failure_message", None)
+    except Exception:
+        custom = None
+    return str(custom).strip() if custom else default_failure_message(language)
 
 
 def _default_setkey_allowed() -> tuple[str, ...]:
