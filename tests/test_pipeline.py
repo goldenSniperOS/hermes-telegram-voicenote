@@ -14,8 +14,12 @@ TG = Target("telegram", "123")
 
 
 class Host:
-    def __init__(self, target=TG, review=False, fail_times=0, writer="Guion hablado."):
+    def __init__(
+        self, target=TG, review=False, fail_times=0, writer="Guion hablado.", live=True, audio=None
+    ):
         self.target, self.review, self.fail_times = target, review, fail_times
+        self.live, self.audio = live, audio or "/tmp/a.ogg"
+        self.send_failures = 0
         self.voices, self.texts, self.scripts, self.threads = [], [], [], []
         self.writer_output = writer
 
@@ -23,11 +27,18 @@ class Host:
         return Ports(
             resolve_target=lambda: self.target,
             is_background_review=lambda: self.review,
+            gateway_is_live=lambda: self.live,
             synthesize=self._synth,
-            send_voice=lambda t, p: self.voices.append((t, p)),
+            send_voice=self._send,
             send_text=lambda t, m: self.texts.append((t, m)),
             script_writer=self._write,
         )
+
+    def _send(self, target, path):
+        if self.send_failures:
+            self.send_failures -= 1
+            raise RuntimeError("telegram down")
+        self.voices.append((target, path))
 
     def _write(self, messages, timeout):
         if isinstance(self.writer_output, Exception):
@@ -40,7 +51,7 @@ class Host:
         if self.fail_times:
             self.fail_times -= 1
             raise RuntimeError("tts down")
-        return "/tmp/a.ogg"
+        return self.audio
 
 
 def make(host, settings=None, muted=False):
@@ -202,3 +213,43 @@ def test_settings_reject_invalid_enums_and_speed():
     raw = {"script_mode": "loud", "chat_types": ["dm", "bogus"], "tts_speed": 9}
     s = Settings.load(lambda k, d: raw.get(k, d))
     assert s.script_mode == "llm" and s.chat_types == ("dm",) and s.tts_speed is None
+
+
+def test_no_voice_note_without_a_live_gateway_in_this_process():
+    # Field report: a CLI run or a subprocess that inherited HERMES_SESSION_*
+    # from a chat turn resolves a Telegram target but must not deliver.
+    host = Host(live=False)
+    threads = []
+    pipe = VoiceNotePipeline(
+        settings=lambda: Settings(),
+        ports=host.ports(),
+        start_thread=threads.append,
+        sleep=lambda s: None,
+    )
+    pipe.on_llm_output(response_text="Respuesta larga de prueba", platform="telegram")
+    assert threads == [] and host.voices == []
+
+
+def test_every_tts_part_is_sent_in_order():
+    # Field report: Hermes splits long text and returns file_paths; the old code
+    # sent only file_path, silently truncating the narration.
+    host = Host(audio=["/tmp/p1.ogg", "/tmp/p2.ogg", "/tmp/p3.ogg"])
+    make(host).on_llm_output(response_text="Respuesta larga", platform="telegram")
+    assert [p for _, p in host.voices] == ["/tmp/p1.ogg", "/tmp/p2.ogg", "/tmp/p3.ogg"]
+
+
+def test_retry_resumes_after_the_last_sent_part():
+    host = Host(audio=["/tmp/p1.ogg", "/tmp/p2.ogg"])
+    original = host._send
+    calls = {"n": 0}
+
+    def flaky(target, path):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError("telegram down")
+        original(target, path)
+
+    host._send = flaky
+    make(host, Settings(retries=2)).on_llm_output(response_text="Respuesta", platform="telegram")
+    assert [p for _, p in host.voices] == ["/tmp/p1.ogg", "/tmp/p2.ogg"]
+    assert len(host.scripts) == 1  # no re-synthesis

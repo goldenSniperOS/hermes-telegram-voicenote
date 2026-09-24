@@ -29,6 +29,7 @@ class Ports:
 
     resolve_target: Callable[[], Target | None]
     is_background_review: Callable[[], bool]
+    gateway_is_live: Callable[[], bool]
     synthesize: Callable[..., str]
     send_voice: Callable[[Target, str], None]
     send_text: Callable[[Target, str], None]
@@ -74,6 +75,10 @@ class VoiceNotePipeline:
             return None  # the agent already attached a voice note
         if self._ports.is_background_review():
             return None  # automatic skill/memory review, not a reply to the user
+        if not self._ports.gateway_is_live():
+            # A CLI run or a subprocess that inherited HERMES_SESSION_* from a
+            # chat turn. Nobody is reading a chat here.
+            return None
         target = self._ports.resolve_target()
         if target is None or target.platform not in settings.platforms:
             return None
@@ -104,20 +109,30 @@ class VoiceNotePipeline:
             style=settings.style,
         )
         last_error: Exception | None = None
+        parts: list[str] = []
+        sent = 0
         for attempt in range(settings.retries + 1):
             try:
-                audio = self._ports.synthesize(
-                    script,
-                    provider=settings.tts_provider,
-                    speed=settings.tts_speed,
-                    instructions=settings.tts_instructions,
-                )
-                self._ports.send_voice(target, audio)
+                if not parts:
+                    audio = self._ports.synthesize(
+                        script,
+                        provider=settings.tts_provider,
+                        speed=settings.tts_speed,
+                        instructions=settings.tts_instructions,
+                    )
+                    parts = [audio] if isinstance(audio, str) else list(audio)
+                # Long scripts come back as several parts. Send each one once; a
+                # retry resumes after the last part that reached the chat.
+                while sent < len(parts):
+                    self._ports.send_voice(target, parts[sent])
+                    sent += 1
                 logger.info(
-                    "telegram-voicenote: delivered to %s in %.1fs (attempt %d)",
+                    "telegram-voicenote: delivered to %s in %.1fs (attempt %d, %d part%s)",
                     target.key,
                     time.monotonic() - started,
                     attempt + 1,
+                    len(parts),
+                    "" if len(parts) == 1 else "s",
                 )
                 return
             except Exception as exc:

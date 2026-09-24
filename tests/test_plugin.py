@@ -113,6 +113,7 @@ def test_double_registration_voices_a_reply_once(monkeypatch):
     monkeypatch.delattr(sys, "_telegram_voicenote_guard", raising=False)
     sent = []
     monkeypatch.setattr(plugin_mod, "_resolve_target", lambda: Target("telegram", "1"))
+    monkeypatch.setattr(plugin_mod, "_gateway_is_live", lambda: True)
     monkeypatch.setattr(plugin_mod.delivery, "synthesize", lambda s, **k: "/tmp/a.ogg")
     monkeypatch.setattr(plugin_mod.delivery, "send_voice", lambda t, p: sent.append(t))
     monkeypatch.setattr("hermes_telegram_voicenote.pipeline._daemon", lambda fn: fn())

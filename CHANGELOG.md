@@ -6,6 +6,35 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-23
+
+Fixes from three field reports.
+
+### Fixed
+- **Voice notes could be sent from non-chat processes.** A CLI run or a
+  subprocess (terminal tool, script) that inherited `HERMES_SESSION_*` from a chat
+  turn looked like a live chat and delivered audio. The plugin now delivers only
+  when this process runs the gateway.
+- **Long replies lost audio after the first part.** Hermes splits long TTS text
+  and returns `file_paths`; only `file_path` was sent. Every part is now sent in
+  order, and a retry resumes after the last part that was delivered.
+- Delivery no longer calls `load_gateway_config()` per voice note (which re-entered
+  plugin discovery); it uses the running gateway's config.
+- `scripts/smoke_e2e.py` now fails if the plugin is registered more than once after
+  the first delivery (lazy discovery from the script-model call).
+
+### Changed
+- `/voicenote` shows the script model and every effective setting.
+- Startup warning when `auxiliary.voicenote_script` is unpinned.
+
+### Documentation
+- `style` is documented as the place for narration rules, with a full example
+  (register, what not to read aloud, loanword phonetics).
+- `failure_message` does not follow `language`.
+- The `not a recognized config key` warning for `auxiliary.voicenote_script` is harmless.
+- Migrating from another plugin: cleaning up the leftover config entries.
+- Windows: pass the plugin id to `hermes plugins doctor`.
+
 ## [0.5.0] - 2026-09-23
 
 ### Added

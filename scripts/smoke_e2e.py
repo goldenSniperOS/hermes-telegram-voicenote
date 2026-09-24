@@ -99,6 +99,25 @@ def main() -> int:
 
         set_session_vars(platform="telegram", chat_id=args.chat_id)
 
+        # The plugin only delivers when this process runs the gateway (it refuses
+        # subprocesses that merely inherited HERMES_SESSION_*). Stand in for it.
+        import asyncio
+        import types
+
+        import gateway.run as gateway_run
+
+        fake_runner = types.SimpleNamespace(_gateway_loop=asyncio.new_event_loop(), config=None)
+        gateway_run._gateway_runner_ref = lambda: fake_runner
+
+        def our_callbacks() -> int:
+            return len(
+                [
+                    cb
+                    for cb in manager._hooks.get("transform_llm_output", [])
+                    if "VoiceNotePipeline" in getattr(cb, "__qualname__", "")
+                ]
+            )
+
         before = {t.ident for t in threading.enumerate()}
         started = time.monotonic()
         results = manager.invoke_hook(
@@ -123,6 +142,13 @@ def main() -> int:
             print("FAIL: worker still running after timeout")
             return 1
         print(f"worker finished in {time.monotonic() - started:.1f}s")
+        # The script model call can trigger lazy plugin discovery inside the
+        # worker; a second registration would show up exactly here.
+        after = our_callbacks()
+        print(f"registrations after first delivery: {after}")
+        if after != 1:
+            print("FAIL: the plugin was registered more than once")
+            return 1
 
         # A duplicate of the same reply must not produce a second voice note.
         manager.invoke_hook(
@@ -135,7 +161,7 @@ def main() -> int:
         # Give any (wrongly) scheduled second worker time to deliver.
         time.sleep(min(args.timeout, 30))
         print(f"deliveries: {len(deliveries)}")
-        ok = len(deliveries) == 1
+        ok = len(deliveries) == 1 and our_callbacks() == 1
         print("dedup:", "OK" if ok else f"FAIL ({len(deliveries)} voice notes delivered)")
         return 0 if ok else 1
     finally:

@@ -136,6 +136,14 @@ hermes config set auxiliary.voicenote_script.model google/gemini-3-flash
 It also appears in `hermes model` → *Configure auxiliary models...*. Prefer something fast
 and inexpensive; the task is short rewriting.
 
+`hermes config set` may print `not a recognized config key` for these two lines. That
+warning is harmless: the slot is declared by the plugin when it loads, and the value is
+read. Run `/voicenote` after `/restart` to see which model is in use.
+
+Leave the slot unpinned and every script is written by your **main** model. With a large
+frontier model that easily adds 5 to 15 seconds per voice note, so the plugin logs a
+warning at startup when the slot is unpinned.
+
 Do not want an LLM involved at all? Use plain mode, which speaks a cleaned-up version of
 the reply (no extra model call, no extra cost):
 
@@ -166,7 +174,26 @@ hermes config set plugins.entries.telegram-voicenote.settings.tts_instructions "
 `tts_instructions` is honored by providers that support voice direction (such as
 OpenAI `gpt-4o-mini-tts`) and ignored by the rest.
 
-### 3. All settings
+### 3. Narration rules (`style`)
+
+`style` is appended to the script writer's instructions. It is small in name only: it
+is **the** place for your narration policy, and a paragraph of rules works well. A
+realistic example for a Spanish voice reading an English-heavy technical agent:
+
+```bash
+hermes config set plugins.entries.telegram-voicenote.settings.style "Rioplatense Spanish with voseo. Never read code blocks, commands, file paths, URLs, diffs, or stack traces aloud; say they are in the text. Enumerate lists of up to four items; summarize longer lists in prose. Say numbers and versions as words. Write English technical words the way a Spanish speaker pronounces them: deploy as diploi, cache as cash, commit as comit."
+```
+
+Two things the style is for, because the default prompt cannot know them:
+
+- **Regional register.** An `es-AR` voice does not tell the writer to use voseo.
+- **Loanword pronunciation.** Non-English TTS voices mangle English technical terms.
+  Spelling them phonetically in the script fixes it.
+
+Keep `language` and your TTS voice in the same language. A Spanish script through an
+`en-US` voice sounds wrong and nothing warns you.
+
+### 4. All settings
 
 Set with `hermes config set plugins.entries.telegram-voicenote.settings.<key> <value>`,
 or edit `config.yaml`:
@@ -199,7 +226,7 @@ plugins:
 | `script_mode` | `llm` | `llm` writes a spoken explanation; `plain` speaks a cleaned-up reply with no model call. |
 | `language` | `auto` | `auto` speaks in the language of the reply; or name one, such as `English` or `Spanish`. |
 | `max_script_words` | `180` | Upper bound for the script. About 150 words is one minute of audio. |
-| `style` | *(empty)* | Extra instructions for the script writer, for example `"Be brief and casual."` |
+| `style` | *(empty)* | Narration rules appended to the writer's prompt. See [Narration rules](#3-narration-rules-style). |
 | `script_timeout` | `90` | Seconds allowed for the script model before falling back to plain mode. |
 | **How it sounds** | | |
 | `tts_provider` | *(global)* | TTS provider for voice notes only, for example `openai`, `elevenlabs`, `edge`. |
@@ -208,7 +235,7 @@ plugins:
 | **Reliability** | | |
 | `retries` | `2` | Extra attempts when synthesis or delivery fails. |
 | `notify_on_failure` | `true` | Send one short message only when a voice note is impossible. |
-| `failure_message` | *(English)* | Text of that message. `{reason}` is replaced with the error type. |
+| `failure_message` | *(English)* | Text of that message. `{reason}` is replaced with the error type. It does not follow `language`; translate it yourself. |
 | **API keys** | | |
 | `setkey_enabled` | `false` | Allow `/setkey` in a private chat (see [Setting a key from your phone](#setting-a-key-from-your-phone-setkey)). |
 | `setkey_allowed` | *(TTS + OpenRouter keys)* | Credential names `/setkey` may write. |
@@ -216,7 +243,7 @@ plugins:
 ### Per chat
 
 ```
-/voicenote        show the current status and settings
+/voicenote        show the version, script model, and every effective setting
 /voicenote off    stop voice notes in this chat
 /voicenote on     resume them
 /setkey NAME key  store an API key (private chat, off by default)
@@ -227,6 +254,9 @@ plugins:
 | Symptom | Check |
 |---|---|
 | No voice note at all | `hermes plugins list` shows `enabled`; you ran `/restart`; `/voicenote` says `on`. |
+| No voice note from a script or terminal command | By design. Voice notes are sent only from the running gateway, never from a CLI session or a subprocess that inherited chat variables. |
+| Two voice notes per reply | Another plugin or `/voice tts` also speaks replies. Check `hermes plugins list` and the leftovers described in [Migrating from another plugin](#migrating-from-another-plugin). |
+| A long voice note arrives as several bubbles | Hermes splits long scripts; every part is sent in order. Lower `max_script_words` for one bubble. |
 | Voice note arrives as a file | Install `ffmpeg` so audio can be converted to Opus. |
 | Two audios per reply | Run `/voice off`, and remove voice rules from `SOUL.md` or memory. |
 | Voice notes are slow | Pin a fast model in `auxiliary.voicenote_script`, or use `script_mode: plain`. |
@@ -344,13 +374,29 @@ stays in your shell history.
 - `/setkey` writes only to Hermes' `.env`, never to the plugin's own data, and never
   logs the value.
 
+## Migrating from another plugin
+
+`hermes plugins remove <old-plugin>` deletes the directory but leaves its entries in
+`config.yaml` (`plugins.enabled`, `plugins.entries.<old-plugin>`). Clean them up:
+
+```bash
+hermes config set plugins.enabled '["telegram-voicenote"]'   # keep your other plugins in the list
+hermes config unset plugins.entries.<old-plugin>
+```
+
+Then remove any old instruction that told the agent to send audio itself (in
+`SOUL.md`, memories, or skills), turn off `/voice tts`, and `/restart`.
+
 ## Development
+
+On Windows with git-bash, pass the plugin id to `doctor` instead of a `~/...` path; MSYS
+paths are not recognized.
 
 ```bash
 uv venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
 ruff check . && pytest
-hermes plugins doctor . --ci
+hermes plugins doctor . --ci            # or: hermes plugins doctor telegram-voicenote --ci
 
 # Real end-to-end run: loads the plugin through Hermes in a throwaway
 # HERMES_HOME and delivers one voice note to the given chat.

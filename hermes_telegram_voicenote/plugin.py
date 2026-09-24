@@ -41,6 +41,10 @@ def _resolve_target() -> Target | None:
     )
 
 
+def _gateway_is_live() -> bool:
+    return delivery.live_gateway() is not None
+
+
 def _is_background_review() -> bool:
     try:
         from tools.skill_provenance import is_background_review
@@ -82,6 +86,21 @@ class _MuteStore:
         self._ctx.state.set(MUTED_KEY, sorted(keys))
 
 
+def _script_model(ctx: Any) -> str:
+    """The pinned script model, or 'main' when the slot falls back to it."""
+    try:
+        from hermes_cli.config import load_config
+
+        slot = (load_config().get("auxiliary") or {}).get(SCRIPT_TASK) or {}
+    except Exception:
+        return "unknown"
+    model = str(slot.get("model") or "").strip()
+    provider = str(slot.get("provider") or "").strip()
+    if not model or provider in {"", "auto"} and not model:
+        return "main (unpinned)"
+    return f"{provider}/{model}" if provider and provider != "auto" else model
+
+
 def make_command(ctx: Any, mutes: _MuteStore):
     from . import __version__
 
@@ -95,13 +114,18 @@ def make_command(ctx: Any, mutes: _MuteStore):
             return f"Voice notes {'disabled' if arg == 'off' else 'enabled'} for this chat."
         s = Settings.load(ctx.get_config)
         here = "n/a" if target is None else ("off" if mutes.is_muted(target) else "on")
-        return (
-            f"telegram-voicenote v{__version__}: "
-            f"{'enabled' if s.enabled else 'disabled'} globally, {here} in this chat. "
-            f"script={s.script_mode} language={s.language} "
-            f"tts={s.tts_provider or 'default'} chats={','.join(s.chat_types)} "
-            f"setkey={'on' if s.setkey_enabled else 'off'}. "
-            "Usage: /voicenote [on|off]"
+        return "\n".join(
+            [
+                f"telegram-voicenote v{__version__}: "
+                f"{'enabled' if s.enabled else 'disabled'} globally, {here} in this chat.",
+                f"script={s.script_mode} model={_script_model(ctx)} language={s.language} "
+                f"max_words={s.max_script_words} style={'set' if s.style else 'none'}",
+                f"tts={s.tts_provider or 'default'} speed={s.tts_speed or 'default'} "
+                f"retries={s.retries} start_delay={s.start_delay}s",
+                f"chats={','.join(s.chat_types)} min_chars={s.min_response_chars} "
+                f"setkey={'on' if s.setkey_enabled else 'off'}",
+                "Usage: /voicenote [on|off]",
+            ]
         )
 
     return handle
@@ -127,6 +151,7 @@ def register(ctx: Any) -> None:
         ports=Ports(
             resolve_target=_resolve_target,
             is_background_review=_is_background_review,
+            gateway_is_live=_gateway_is_live,
             synthesize=delivery.synthesize,
             send_voice=delivery.send_voice,
             send_text=delivery.send_text,
@@ -136,6 +161,12 @@ def register(ctx: Any) -> None:
         guard=process_guard(),
     )
     ctx.register_hook("transform_llm_output", pipeline.on_llm_output)
+    if _script_model(ctx) == "main (unpinned)":
+        logger.warning(
+            "telegram-voicenote: auxiliary.%s is not pinned; scripts use the main "
+            "model, which can add many seconds per voice note on a large model",
+            SCRIPT_TASK,
+        )
     try:
         from .telegram_setkey import make_factory
 
