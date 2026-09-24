@@ -14,6 +14,31 @@ in spoken form.
 
 See [docs/design.md](docs/design.md) for the requirements and architecture.
 
+## Why not just use `/voice tts`?
+
+Hermes ships a built-in voice reply mode (`/voice tts`). It is the obvious first
+choice, and it is where this project started: the author enabled it on another
+agent and it was not reliable enough. Sometimes a voice note arrived, sometimes it
+did not. This plugin exists because of that experience.
+
+Reading the Hermes gateway code (`_should_send_voice_reply` / `_send_voice_reply`
+in `gateway/run.py`) explains the gaps:
+
+| Built-in `/voice tts` | This plugin |
+|---|---|
+| Any failure is logged as a warning and the voice note is dropped. No retry, no notice. | Retries synthesis and delivery; if audio is still impossible, sends one short notice. |
+| Skipped entirely when the agent called `text_to_speech` at any point in the turn. | Decides on the final reply only; one voice note per reply, guaranteed by an idempotency guard. |
+| Voice-message inputs are handed to a different code path (the adapter's auto-TTS) with its own rules. | Same behavior whether you type or send audio. |
+| Reads the reply aloud after stripping Markdown. Tables and lists become one flat run-on sentence. | Writes a real spoken script from the original Markdown, explaining tables and code instead of reciting them. |
+| Synthesizes inside the gateway turn, before the text is finalized. | Text goes out first; audio is produced in the background. |
+| Per-chat mode lives in a local state file; a chat with no explicit mode falls back to `voice.auto_tts`. | Always on for Telegram unless you turn it off with `/voicenote off`. |
+
+The long-term hope is that this behavior becomes an option of the built-in voice
+mode. Until then it lives here as a plugin, where it can evolve quickly.
+
+> Do not enable `/voice tts` in a chat that uses this plugin, or you will get two
+> audios per reply. Run `/voice off` there.
+
 ## Requirements
 
 - Hermes Agent with the Telegram gateway configured.
