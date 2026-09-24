@@ -6,6 +6,18 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-23
+
+### Added
+- Automatic voice note after every Telegram reply via the `transform_llm_output` hook.
+- Spoken-script writer on the plugin-owned auxiliary task `voicenote_script`, with a
+  deterministic fallback when the model call fails.
+- Background delivery thread: text is never delayed and the hook timeout cannot drop audio.
+- Idempotency guard (one voice note per chat and reply), retries, and a single failure notice.
+- Skips background skill/memory review, cron, and non-Telegram sessions.
+- `/voicenote on|off` per-chat toggle and plugin settings under `plugins.entries`.
+- `docs/design.md` consolidating the requirements and field lessons.
+
 ## [0.1.1] - 2026-09-23
 
 ### Fixed
