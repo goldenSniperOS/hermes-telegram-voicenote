@@ -239,6 +239,38 @@ Still stuck, or it misbehaved on a real agent? Open a
 
 ## Security and privacy
 
+### API keys: never paste them in the chat
+
+Some TTS providers and script models need an API key. **Do not send it to your agent
+in Telegram.** Telegram has no hidden input field, and Hermes does not offer secure
+secret entry over messaging platforms (it answers "Secure secret entry is not
+supported over messaging"). A key typed in the chat stays in the Telegram history,
+the session transcript, and possibly the logs. If that already happened, rotate the
+key.
+
+Instead, on the machine that runs Hermes, add it to `~/.hermes/.env` (created with
+owner-only permissions) with a text editor:
+
+```bash
+nano ~/.hermes/.env
+```
+
+```dotenv
+# Only the ones you need
+VOICE_TOOLS_OPENAI_KEY=...   # OpenAI TTS (falls back to OPENAI_API_KEY)
+ELEVENLABS_API_KEY=...
+MISTRAL_API_KEY=...
+GEMINI_API_KEY=...
+OPENROUTER_API_KEY=...       # e.g. for auxiliary.voicenote_script
+```
+
+Then send `/restart`. `hermes config set OPENAI_API_KEY <value>` also writes to
+`.env`, but the value stays in your shell history, so prefer the editor. For a vault
+or password manager, see Hermes'
+[secret sources](https://hermes-agent.nousresearch.com/docs/user-guide/secrets).
+
+### What the plugin does with your data
+
 - Plugins run inside Hermes with its permissions. Review the code before enabling it.
 - Reply text is sent to the script model and to your TTS provider, the same services
   Hermes already uses. Use `script_mode: plain` to avoid the extra model call.

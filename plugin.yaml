@@ -1,5 +1,5 @@
 name: telegram-voicenote
-version: 0.4.2
+version: 0.4.3
 manifest_version: 1
 description: >-
   Follow every Telegram reply with a native voice note, written as a spoken

@@ -6,6 +6,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-09-23
+
+### Documentation
+- README: how to add API keys for TTS providers and the script model without
+  pasting them into the chat (Telegram has no hidden input and Hermes does not
+  support secure secret entry over messaging), using `~/.hermes/.env` or a secret
+  source, plus which environment variables each TTS provider reads.
+
 ## [0.4.2] - 2026-09-23
 
 ### Fixed
