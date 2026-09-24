@@ -24,7 +24,8 @@ Thanks for helping improve this plugin. Issues and pull requests are welcome.
    ruff check . && ruff format --check . && pytest
    hermes plugins doctor . --ci
    ```
-5. Open a PR against `develop` and fill in the template. CI must pass.
+5. Open a PR against `develop` and fill in the template. CI must pass. Feature and fix
+   PRs are **squash-merged**.
 
 ## Release process
 
@@ -32,7 +33,8 @@ Thanks for helping improve this plugin. Issues and pull requests are welcome.
 2. Bump the version in **three places**: `plugin.yaml`, `pyproject.toml`,
    `hermes_telegram_voicenote/__init__.py`. Tests and the release job fail if they disagree.
 3. Move the `[Unreleased]` notes in `CHANGELOG.md` to `## [X.Y.Z] - YYYY-MM-DD`.
-4. Open a PR `release/vX.Y.Z` -> `main`. Merge after CI passes.
+4. Open a PR `release/vX.Y.Z` -> `main`. Merge with a **merge commit** (not squash) after
+   CI passes, so `main` and `develop` keep a shared history.
 5. Tag the merge commit on `main` and push the tag:
    ```bash
    git switch main && git pull
