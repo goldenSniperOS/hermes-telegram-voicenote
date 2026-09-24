@@ -1,12 +1,22 @@
 name: telegram-voicenote
-version: 0.1.1
+version: 0.2.0
 manifest_version: 1
 description: >-
-  Attach an extra Telegram voice note to Hermes responses, generated with the
-  TTS provider already configured in Hermes.
+  Follow every Telegram reply with a native voice note, written as a spoken
+  script and rendered with the TTS voice already configured in Hermes.
 author: goldenSniperOS
 license: MIT
 homepage: https://github.com/goldenSniperOS/hermes-telegram-voicenote
 tags: [telegram, voice, tts, gateway]
+config_schema:
+  enabled: {type: bool, default: true, description: "Master switch for automatic voice notes"}
+  platforms: {type: list, default: [telegram], description: "Platforms that receive voice notes"}
+  language: {type: str, default: Spanish, description: "Language of the spoken script"}
+  max_script_words: {type: int, default: 180, description: "Upper bound for the spoken script"}
+  retries: {type: int, default: 2, description: "TTS/send retries before giving up"}
+  notify_on_failure: {type: bool, default: true, description: "Tell the user only when a voice note is impossible"}
+  script_timeout: {type: float, default: 90, description: "Seconds allowed for the script writer"}
+  start_delay: {type: float, default: 1.5, description: "Seconds to wait so the text reply lands first"}
 provides_tools: []
-provides_hooks: []
+provides_hooks:
+  - transform_llm_output
