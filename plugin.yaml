@@ -1,5 +1,5 @@
 name: telegram-voicenote
-version: 0.4.3
+version: 0.5.0
 manifest_version: 1
 description: >-
   Follow every Telegram reply with a native voice note, written as a spoken
@@ -25,6 +25,8 @@ config_schema:
   retries: {type: int, default: 2, description: "TTS/send retries before giving up"}
   notify_on_failure: {type: bool, default: true, description: "Tell the user only when a voice note is impossible"}
   failure_message: {type: str, description: "Failure notice text; {reason} is replaced with the error type"}
+  setkey_enabled: {type: bool, default: false, description: "Allow /setkey to store API keys from a private Telegram chat"}
+  setkey_allowed: {type: list, description: "Credential names /setkey may write; empty = built-in TTS and OpenRouter list"}
 provides_tools: []
 provides_hooks:
   - transform_llm_output

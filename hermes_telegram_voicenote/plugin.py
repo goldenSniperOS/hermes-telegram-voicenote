@@ -99,7 +99,8 @@ def make_command(ctx: Any, mutes: _MuteStore):
             f"telegram-voicenote v{__version__}: "
             f"{'enabled' if s.enabled else 'disabled'} globally, {here} in this chat. "
             f"script={s.script_mode} language={s.language} "
-            f"tts={s.tts_provider or 'default'} chats={','.join(s.chat_types)}. "
+            f"tts={s.tts_provider or 'default'} chats={','.join(s.chat_types)} "
+            f"setkey={'on' if s.setkey_enabled else 'off'}. "
             "Usage: /voicenote [on|off]"
         )
 
@@ -135,6 +136,14 @@ def register(ctx: Any) -> None:
         guard=process_guard(),
     )
     ctx.register_hook("transform_llm_output", pipeline.on_llm_output)
+    try:
+        from .telegram_setkey import make_factory
+
+        ctx.register_platform_handler(
+            "telegram", make_factory(lambda: Settings.load(ctx.get_config))
+        )
+    except Exception as exc:
+        logger.warning("telegram-voicenote: /setkey unavailable (%s)", exc)
     ctx.register_command(
         COMMAND_NAME,
         make_command(ctx, mutes),

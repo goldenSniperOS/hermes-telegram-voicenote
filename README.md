@@ -209,6 +209,9 @@ plugins:
 | `retries` | `2` | Extra attempts when synthesis or delivery fails. |
 | `notify_on_failure` | `true` | Send one short message only when a voice note is impossible. |
 | `failure_message` | *(English)* | Text of that message. `{reason}` is replaced with the error type. |
+| **API keys** | | |
+| `setkey_enabled` | `false` | Allow `/setkey` in a private chat (see [Setting a key from your phone](#setting-a-key-from-your-phone-setkey)). |
+| `setkey_allowed` | *(TTS + OpenRouter keys)* | Credential names `/setkey` may write. |
 
 ### Per chat
 
@@ -216,6 +219,7 @@ plugins:
 /voicenote        show the current status and settings
 /voicenote off    stop voice notes in this chat
 /voicenote on     resume them
+/setkey NAME key  store an API key (private chat, off by default)
 ```
 
 ## Troubleshooting
@@ -227,6 +231,7 @@ plugins:
 | Two audios per reply | Run `/voice off`, and remove voice rules from `SOUL.md` or memory. |
 | Voice notes are slow | Pin a fast model in `auxiliary.voicenote_script`, or use `script_mode: plain`. |
 | Wrong accent | Pick a TTS voice for your language (`tts.edge.voice`, or `tts_provider`). |
+| Failure notice after switching TTS provider | The provider's API key is missing or wrong. See [API keys for TTS providers](#api-keys-for-tts-providers). |
 
 Logs:
 
@@ -239,35 +244,95 @@ Still stuck, or it misbehaved on a real agent? Open a
 
 ## Security and privacy
 
-### API keys: never paste them in the chat
+### API keys for TTS providers
 
-Some TTS providers and script models need an API key. **Do not send it to your agent
-in Telegram.** Telegram has no hidden input field, and Hermes does not offer secure
-secret entry over messaging platforms (it answers "Secure secret entry is not
-supported over messaging"). A key typed in the chat stays in the Telegram history,
-the session transcript, and possibly the logs. If that already happened, rotate the
-key.
+API keys belong to **Hermes**, not to this plugin. The plugin uses whatever TTS
+provider and script model Hermes is configured with, so the key must be set the
+way Hermes expects it. Each provider reads its key from an environment variable:
 
-Instead, on the machine that runs Hermes, add it to `~/.hermes/.env` (created with
-owner-only permissions) with a text editor:
+| TTS provider (`tts.provider` or `tts_provider`) | Variable |
+|---|---|
+| `edge` (default) | none, it is free |
+| `openai` | `VOICE_TOOLS_OPENAI_KEY`, falling back to `OPENAI_API_KEY` |
+| `elevenlabs` | `ELEVENLABS_API_KEY` |
+| `mistral` | `MISTRAL_API_KEY` |
+| `gemini` | `GEMINI_API_KEY` or `GOOGLE_API_KEY` |
+| `minimax` | `MINIMAX_API_KEY` |
+| `deepinfra` | `DEEPINFRA_API_KEY` |
+
+The script model (`auxiliary.voicenote_script`) uses the key of whichever provider
+you picked, for example `OPENROUTER_API_KEY`.
+
+If the key is missing or wrong, TTS fails, the plugin retries, and you get one short
+failure notice instead of a voice note. Check the gateway log for the provider's
+error.
+
+### Setting a key from your phone: `/setkey`
+
+**Never paste a key into a normal chat message.** Telegram has no hidden input
+field, and Hermes has no secure secret entry over messaging platforms. A key sent
+as a normal message ends up in the Telegram history, the session transcript, and
+the gateway log.
+
+For the common case (you are on your phone and cannot reach a terminal), the
+plugin adds a `/setkey` command. It is **off by default**. Enable it once on the
+Hermes machine:
 
 ```bash
-nano ~/.hermes/.env
+hermes config set plugins.entries.telegram-voicenote.settings.setkey_enabled true
 ```
 
-```dotenv
-# Only the ones you need
-VOICE_TOOLS_OPENAI_KEY=...   # OpenAI TTS (falls back to OPENAI_API_KEY)
-ELEVENLABS_API_KEY=...
-MISTRAL_API_KEY=...
-GEMINI_API_KEY=...
-OPENROUTER_API_KEY=...       # e.g. for auxiliary.voicenote_script
+Restart the gateway. Then, in a **private chat** with your bot:
+
+```
+/setkey ELEVENLABS_API_KEY sk_your_key_here
 ```
 
-Then send `/restart`. `hermes config set OPENAI_API_KEY <value>` also writes to
-`.env`, but the value stays in your shell history, so prefer the editor. For a vault
-or password manager, see Hermes'
-[secret sources](https://hermes-agent.nousresearch.com/docs/user-guide/secrets).
+What happens:
+
+1. The command is intercepted **before it reaches Hermes**. It never becomes an
+   agent turn, never enters the session transcript, and never reaches the gateway
+   log (the plugin logs only the variable name).
+2. The key is saved to `~/.hermes/.env` through Hermes' own credential routine,
+   the same one the Desktop app and `hermes auth` use.
+3. Your message is **deleted** from the chat, and the bot replies with a masked
+   confirmation such as `Saved ELEVENLABS_API_KEY (...here)`.
+4. Send `/restart` so every provider picks up the new key.
+
+Safeguards:
+
+- Private chats only. In a group the message is deleted and refused.
+- Only users Hermes already authorizes (`TELEGRAM_ALLOWED_USERS` and friends).
+  Anyone else is refused, fail-closed.
+- Only names in an allowlist. By default: `VOICE_TOOLS_OPENAI_KEY`,
+  `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `MISTRAL_API_KEY`, `GEMINI_API_KEY`,
+  `GOOGLE_API_KEY`, `MINIMAX_API_KEY`, `DEEPINFRA_API_KEY`, `OPENROUTER_API_KEY`.
+  Change it with `setkey_allowed`.
+- Names that control access to the bot itself (`TELEGRAM_BOT_TOKEN`,
+  `TELEGRAM_ALLOWED_USERS`, `GATEWAY_ALLOW_ALL_USERS`, `SUDO_PASSWORD`) can never be
+  written from the chat, even if you add them to the allowlist.
+
+What it cannot protect:
+
+- **Telegram itself saw the message.** Bot chats are not end-to-end encrypted, so
+  the key passed through Telegram's servers before it was deleted. Treat `/setkey`
+  as "safe enough for a personal API key with a spending limit", not as a vault.
+  Rotate a key if you are unsure.
+- If the bot cannot delete the message (it usually can in a private chat), the
+  reply tells you to delete it yourself.
+
+### Setting a key on the Hermes machine
+
+When you do have access to the machine, these are preferable:
+
+- Edit `~/.hermes/.env` (owner-only permissions) and add `ELEVENLABS_API_KEY=...`.
+- Run `hermes auth add <provider>`, which prompts for the key without echoing it.
+- Use a password manager through Hermes'
+  [secret sources](https://hermes-agent.nousresearch.com/docs/user-guide/secrets)
+  (Bitwarden, 1Password, or any CLI).
+
+`hermes config set OPENAI_API_KEY <value>` also writes to `.env`, but the value
+stays in your shell history.
 
 ### What the plugin does with your data
 
@@ -276,6 +341,8 @@ or password manager, see Hermes'
   Hermes already uses. Use `script_mode: plain` to avoid the extra model call.
 - The plugin stores only the list of chats where you ran `/voicenote off`, under
   `~/.hermes/plugin-data/`. It sends no telemetry.
+- `/setkey` writes only to Hermes' `.env`, never to the plugin's own data, and never
+  logs the value.
 
 ## Development
 

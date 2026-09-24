@@ -6,7 +6,7 @@ Every value has a safe default so the plugin works with zero configuration.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 Getter = Callable[[str, Any], Any]
@@ -38,6 +38,9 @@ class Settings:
     retries: int = 2
     notify_on_failure: bool = True
     failure_message: str = DEFAULT_FAILURE_MESSAGE
+    # /setkey (off by default)
+    setkey_enabled: bool = False
+    setkey_allowed: tuple[str, ...] = field(default_factory=lambda: _default_setkey_allowed())
 
     @classmethod
     def load(cls, get: Getter) -> Settings:
@@ -78,7 +81,33 @@ class Settings:
             retries=max(0, pick("retries", int)),
             notify_on_failure=pick("notify_on_failure", _to_bool),
             failure_message=str(pick("failure_message", str)) or d.failure_message,
+            setkey_enabled=pick("setkey_enabled", _to_bool),
+            setkey_allowed=_setkey_allowed(get),
         )
+
+
+def _default_setkey_allowed() -> tuple[str, ...]:
+    from .setkey import DEFAULT_ALLOWED
+
+    return DEFAULT_ALLOWED
+
+
+def _setkey_allowed(get: Getter) -> tuple[str, ...]:
+    from .setkey import DEFAULT_ALLOWED
+
+    try:
+        raw = get("setkey_allowed", None)
+    except Exception:
+        raw = None
+    if not raw:
+        return DEFAULT_ALLOWED
+    if isinstance(raw, str):
+        raw = raw.split(",")
+    try:
+        names = tuple(str(n).strip().upper() for n in raw if str(n).strip())
+    except TypeError:
+        return DEFAULT_ALLOWED
+    return names or DEFAULT_ALLOWED
 
 
 def _to_bool(value: Any) -> bool:

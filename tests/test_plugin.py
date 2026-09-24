@@ -40,6 +40,10 @@ class FakeContext:
     def register_auxiliary_task(self, key, **kw):
         self.tasks[key] = kw
 
+    def register_platform_handler(self, platform, factory):
+        self.platform_handlers = getattr(self, "platform_handlers", {})
+        self.platform_handlers[platform] = factory
+
     def get_config(self, key, default=None):
         return self.settings.get(key, default)
 
@@ -50,6 +54,7 @@ def test_register_wires_hook_command_and_script_task():
     assert COMMAND_NAME in ctx.commands
     assert "transform_llm_output" in ctx.hooks
     assert SCRIPT_TASK in ctx.tasks
+    assert "telegram" in ctx.platform_handlers
 
 
 def test_hook_never_replaces_the_reply():

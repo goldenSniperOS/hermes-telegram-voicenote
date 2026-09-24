@@ -6,6 +6,22 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-23
+
+### Added
+- `/setkey NAME value`: store an API key from a private Telegram chat without it
+  reaching Hermes. The command is handled by a native Telegram handler that runs
+  before the gateway, so the message never becomes an agent turn, never enters the
+  transcript, and never reaches the gateway log. The key is saved through Hermes'
+  own credential routine and the message is deleted. Off by default
+  (`setkey_enabled`), private chats and authorized users only, allowlisted names
+  only (`setkey_allowed`), and bot-access variables are never writable.
+
+### Documentation
+- README: API keys belong to Hermes; table of the variable each TTS provider
+  reads; how to set a key from the phone and from the Hermes machine; honest limits
+  (Telegram still saw the message).
+
 ## [0.4.3] - 2026-09-23
 
 ### Documentation
