@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify tag matches every version surface
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          PYPROJECT=$(grep -E '^version = ' pyproject.toml | head -1 | sed -E 's/version = "(.*)"/\1/')
+          MANIFEST=$(grep -E '^version: ' plugin.yaml | head -1 | sed -E 's/version: //')
+          PKG=$(grep -E '^__version__ = ' hermes_telegram_voicenote/__init__.py | sed -E 's/__version__ = "(.*)"/\1/')
+          echo "tag=$TAG pyproject=$PYPROJECT plugin.yaml=$MANIFEST package=$PKG"
+          for v in "$PYPROJECT" "$MANIFEST" "$PKG"; do
+            [ "$v" = "$TAG" ] || { echo "::error::Version mismatch with tag v$TAG"; exit 1; }
+          done
+          grep -qF "## [$TAG]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no [$TAG] section"; exit 1; }
+
+      - name: Verify tag is on main
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::Tag is not on main"; exit 1; }
+
+      - name: Test
+        run: |
+          pip install -e ".[dev]" build
+          ruff check .
+          pytest -q
+
+      - name: Build artifacts
+        run: |
+          python -m build
+          git archive --format=zip --prefix=telegram-voicenote/ -o "dist/telegram-voicenote-${GITHUB_REF_NAME}.zip" "$GITHUB_SHA"
+          (cd dist && sha256sum * > SHA256SUMS.txt)
+
+      - name: Build release notes
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          awk -v h="## [$TAG]" 'index($0, h) == 1 {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notes.md
+          {
+            echo ""
+            echo "## Install"
+            echo ""
+            echo '```bash'
+            echo "hermes plugins install ${GITHUB_REPOSITORY} --ref ${GITHUB_SHA} --enable"
+            echo '```'
+            echo ""
+            echo "Commit: ${GITHUB_SHA}"
+          } >> notes.md
+          cat notes.md
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag

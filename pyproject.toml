@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hermes-telegram-voicenote"
+version = "0.1.0"
+description = "Hermes Agent plugin that attaches a Telegram voice note to responses."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Adrian Ruiz" }]
+keywords = ["hermes-agent", "plugin", "telegram", "tts", "voice"]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9", "ruff>=0.6,<1", "pyyaml>=6,<7"]
+
+[project.urls]
+Homepage = "https://github.com/goldenSniperOS/hermes-telegram-voicenote"
+Issues = "https://github.com/goldenSniperOS/hermes-telegram-voicenote/issues"
+Changelog = "https://github.com/goldenSniperOS/hermes-telegram-voicenote/blob/main/CHANGELOG.md"
+
+[project.entry-points."hermes_agent.plugins"]
+telegram-voicenote = "hermes_telegram_voicenote:register"
+
+[tool.setuptools]
+packages = ["hermes_telegram_voicenote"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
