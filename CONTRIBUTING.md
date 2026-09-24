@@ -13,6 +13,12 @@ Thanks for helping improve this plugin. Issues and pull requests are welcome.
 | `release/vX.Y.Z` | Release preparation, branched from `develop`, merged into `main`. |
 | `hotfix/<topic>` | Urgent fixes, branched from `main`, merged into `main` and `develop`. |
 
+## Rule: every failure found in use ships as a new version
+
+Any failure found while installing, configuring, or using the plugin, on any
+agent, is fixed and released as a new **patch** version (`X.Y.Z+1`), even if the
+fix is only documentation. The release note tells every agent how to update.
+
 ## Field-testing loop
 
 This plugin improves from real use on real agents:

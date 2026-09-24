@@ -55,11 +55,24 @@ jobs:
           awk -v h="## [$TAG]" 'index($0, h) == 1 {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notes.md
           {
             echo ""
-            echo "## Install"
+            echo "## Install or update"
             echo ""
+            echo "New install:"
             echo '```bash'
             echo "hermes plugins install ${GITHUB_REPOSITORY} --ref ${GITHUB_SHA} --enable"
             echo '```'
+            echo ""
+            echo "Update an agent installed with --ref (pinned):"
+            echo '```bash'
+            echo "hermes plugins install ${GITHUB_REPOSITORY} --ref ${GITHUB_SHA} --force --enable"
+            echo '```'
+            echo ""
+            echo "Update an agent installed without --ref:"
+            echo '```bash'
+            echo "hermes plugins update telegram-voicenote"
+            echo '```'
+            echo ""
+            echo "Then send /restart in Telegram. Settings in config.yaml are kept."
             echo ""
             echo "Commit: ${GITHUB_SHA}"
           } >> notes.md

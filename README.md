@@ -77,18 +77,34 @@ jobs, and subagents are never narrated. See [docs/design.md](docs/design.md) for
 
 ## Install
 
+Pick one of the two install styles. They update differently.
+
+**Follow the latest version** (simplest):
+
 ```bash
 hermes plugins install goldenSniperOS/hermes-telegram-voicenote --enable
 ```
 
-For a reproducible install, pin the release commit listed on each
-[GitHub release](https://github.com/goldenSniperOS/hermes-telegram-voicenote/releases):
+**Pin an exact release** (reproducible). Each
+[GitHub release](https://github.com/goldenSniperOS/hermes-telegram-voicenote/releases)
+lists its commit SHA:
 
 ```bash
 hermes plugins install goldenSniperOS/hermes-telegram-voicenote --ref <commit-sha> --enable
 ```
 
 Restart the gateway (send `/restart` in Telegram), then send any message.
+
+### Updating
+
+| You installed with | Update with |
+|---|---|
+| No `--ref` | `hermes plugins update telegram-voicenote` |
+| `--ref <sha>` | `hermes plugins install goldenSniperOS/hermes-telegram-voicenote --ref <new-sha> --force --enable` |
+
+`hermes plugins update` refuses pinned installs on purpose, so a pinned agent never
+changes version by surprise. Every release note includes the exact command for both
+cases. Your settings in `config.yaml` are kept; restart the gateway afterwards.
 
 ### Setup checklist
 

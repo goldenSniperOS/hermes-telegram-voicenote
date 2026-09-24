@@ -6,6 +6,17 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-09-23
+
+### Fixed
+- Documented updates: `hermes plugins update` refuses installs pinned with `--ref`
+  (verified on Hermes v0.21.0), which is the install style the README recommended.
+  The README now has an "Updating" section, and every release note includes the
+  exact update command for pinned and unpinned installs.
+
+### Documentation
+- CONTRIBUTING: every failure found in use ships as a new patch version.
+
 ## [0.4.1] - 2026-09-23
 
 ### Fixed
