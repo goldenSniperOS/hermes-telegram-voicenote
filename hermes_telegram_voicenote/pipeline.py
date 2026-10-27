@@ -15,7 +15,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from .delivery import Target
+from .delivery import AmbiguousDeliveryError, Target
 from .guard import DedupGuard
 from .script import ScriptWriter, make_script
 from .settings import Settings
@@ -124,7 +124,14 @@ class VoiceNotePipeline:
                 # Long scripts come back as several parts. Send each one once; a
                 # retry resumes after the last part that reached the chat.
                 while sent < len(parts):
-                    self._ports.send_voice(target, parts[sent])
+                    try:
+                        self._ports.send_voice(target, parts[sent])
+                    except AmbiguousDeliveryError as exc:
+                        logger.warning(
+                            "telegram-voicenote: part %d timed out after upload; not resending: %s",
+                            sent + 1,
+                            exc,
+                        )
                     sent += 1
                 logger.info(
                     "telegram-voicenote: delivered to %s in %.1fs (attempt %d, %d part%s)",

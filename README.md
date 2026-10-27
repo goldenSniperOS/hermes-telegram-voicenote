@@ -234,7 +234,7 @@ plugins:
 | `tts_speed` | *(global)* | Playback speed from `0.25` to `4.0`. |
 | `tts_instructions` | *(empty)* | Voice direction for providers that support it. |
 | **Reliability** | | |
-| `retries` | `2` | Extra attempts when synthesis or delivery fails. |
+| `retries` | `2` | Extra attempts when synthesis or delivery fails. A timeout after the upload may already have delivered the note, so it is never resent. |
 | `notify_on_failure` | `true` | Send one short message only when a voice note is impossible. |
 | `failure_message` | *(follows `language`)* | Text of that message. `{reason}` is replaced with the error type. Built in for English, Spanish, Portuguese, French, German, and Italian; set it yourself for other languages. |
 | **API keys** | | |

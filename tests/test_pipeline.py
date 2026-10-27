@@ -253,3 +253,46 @@ def test_retry_resumes_after_the_last_sent_part():
     make(host, Settings(retries=2)).on_llm_output(response_text="Respuesta", platform="telegram")
     assert [p for _, p in host.voices] == ["/tmp/p1.ogg", "/tmp/p2.ogg"]
     assert len(host.scripts) == 1  # no re-synthesis
+
+
+def test_ambiguous_timeout_is_not_resent():
+    # Field report: Telegram accepted the upload, the client timed out reading the
+    # reply, and every retry delivered the same voice note again.
+    from hermes_telegram_voicenote.delivery import AmbiguousDeliveryError
+
+    host = Host()
+    calls = {"n": 0}
+
+    def timed_out(target, path):
+        calls["n"] += 1
+        raise AmbiguousDeliveryError("Timed out")
+
+    host._send = timed_out
+    make(host, Settings(retries=2)).on_llm_output(response_text="hola", platform="telegram")
+    assert calls["n"] == 1
+    assert host.texts == []
+
+
+def test_ambiguous_timeout_moves_on_to_the_next_part():
+    from hermes_telegram_voicenote.delivery import AmbiguousDeliveryError
+
+    host = Host(audio=["/tmp/p1.ogg", "/tmp/p2.ogg"])
+    original = host._send
+    sent = []
+
+    def first_times_out(target, path):
+        sent.append(path)
+        if path == "/tmp/p1.ogg":
+            raise AmbiguousDeliveryError("Timed out")
+        original(target, path)
+
+    host._send = first_times_out
+    make(host, Settings(retries=2)).on_llm_output(response_text="hola", platform="telegram")
+    assert sent == ["/tmp/p1.ogg", "/tmp/p2.ogg"]
+
+
+def test_real_failure_is_still_retried():
+    host = Host()
+    host.send_failures = 2
+    make(host, Settings(retries=2)).on_llm_output(response_text="hola", platform="telegram")
+    assert len(host.voices) == 1 and host.texts == []

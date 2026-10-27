@@ -6,6 +6,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- A voice note arrived several times when Telegram accepted the upload but the
+  client timed out reading the reply. A plain read timeout is now treated as
+  possibly delivered and is never resent. Connect and pool timeouts, and other
+  real failures, are still retried up to `retries` times (#10).
+
 ## [0.5.2] - 2026-09-23
 
 ### Fixed
