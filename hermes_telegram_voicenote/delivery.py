@@ -39,9 +39,6 @@ class AmbiguousDeliveryError(DeliveryError):
 
 
 _NEVER_SENT_MARKERS = (
-    "connecttimeout",
-    "connect timeout",
-    "connect timed out",
     "pool timeout",
     "pooltimeout",
 )

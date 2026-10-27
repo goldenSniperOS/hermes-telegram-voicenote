@@ -78,8 +78,8 @@ def test_read_timeout_after_upload_is_ambiguous(monkeypatch):
 @pytest.mark.parametrize(
     "reason",
     [
-        "Timed out: ConnectTimeout",
-        "Pool timeout: All connections in the connection pool are occupied",
+        "Pool timeout: All connections in the connection pool are occupied. "
+        "Request was *not* sent to Telegram.",
         "Bad Gateway",
     ],
 )
