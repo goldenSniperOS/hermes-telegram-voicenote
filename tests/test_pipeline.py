@@ -314,5 +314,9 @@ def test_unconfirmed_part_is_logged_and_not_reported_as_delivered(caplog):
         make(host, Settings(retries=2)).on_llm_output(response_text="hola", platform="telegram")
     messages = [r.getMessage() for r in caplog.records]
     assert any("part 1 timed out after upload; not resending" in m for m in messages)
-    assert any("1 of 2 parts unconfirmed" in m for m in messages)
+    summary = [r for r in caplog.records if "1 of 2 parts unconfirmed" in r.getMessage()]
+    assert len(summary) == 1 and summary[0].levelname == "WARNING"
+    assert "(attempt 1)" in summary[0].getMessage()
     assert not any("delivered to" in m for m in messages)
+    assert [p for _, p in host.voices] == ["/tmp/p2.ogg"]
+    assert host.texts == []

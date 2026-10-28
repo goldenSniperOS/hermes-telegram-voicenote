@@ -75,7 +75,7 @@ def test_read_timeout_after_upload_is_ambiguous(monkeypatch):
         delivery.send_voice(TARGET, "/tmp/a.ogg")
 
 
-def test_gateway_timeout_is_ambiguous(monkeypatch):
+def test_gateway_timeout_stays_ambiguous_like_the_hermes_text_sender(monkeypatch):
     _fake_send(
         monkeypatch,
         {

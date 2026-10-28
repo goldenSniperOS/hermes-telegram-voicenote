@@ -137,9 +137,11 @@ class VoiceNotePipeline:
                     sent += 1
                 if unconfirmed:
                     logger.warning(
-                        "telegram-voicenote: sent to %s in %.1fs, %d of %d part%s unconfirmed",
+                        "telegram-voicenote: sent to %s in %.1fs (attempt %d), %d of %d part%s "
+                        "unconfirmed",
                         target.key,
                         time.monotonic() - started,
+                        attempt + 1,
                         unconfirmed,
                         len(parts),
                         "" if len(parts) == 1 else "s",
