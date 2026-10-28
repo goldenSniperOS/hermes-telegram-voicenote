@@ -111,6 +111,7 @@ class VoiceNotePipeline:
         last_error: Exception | None = None
         parts: list[str] = []
         sent = 0
+        unconfirmed = 0
         for attempt in range(settings.retries + 1):
             try:
                 if not parts:
@@ -127,12 +128,23 @@ class VoiceNotePipeline:
                     try:
                         self._ports.send_voice(target, parts[sent])
                     except AmbiguousDeliveryError as exc:
+                        unconfirmed += 1
                         logger.warning(
                             "telegram-voicenote: part %d timed out after upload; not resending: %s",
                             sent + 1,
                             exc,
                         )
                     sent += 1
+                if unconfirmed:
+                    logger.warning(
+                        "telegram-voicenote: sent to %s in %.1fs, %d of %d part%s unconfirmed",
+                        target.key,
+                        time.monotonic() - started,
+                        unconfirmed,
+                        len(parts),
+                        "" if len(parts) == 1 else "s",
+                    )
+                    return
                 logger.info(
                     "telegram-voicenote: delivered to %s in %.1fs (attempt %d, %d part%s)",
                     target.key,

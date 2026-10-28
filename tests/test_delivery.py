@@ -75,6 +75,18 @@ def test_read_timeout_after_upload_is_ambiguous(monkeypatch):
         delivery.send_voice(TARGET, "/tmp/a.ogg")
 
 
+def test_gateway_timeout_is_ambiguous(monkeypatch):
+    _fake_send(
+        monkeypatch,
+        {
+            "error": NOTHING_SENT,
+            "warnings": ["Failed to send media /tmp/a.ogg: Gateway Timeout (504)"],
+        },
+    )
+    with pytest.raises(delivery.AmbiguousDeliveryError):
+        delivery.send_voice(TARGET, "/tmp/a.ogg")
+
+
 @pytest.mark.parametrize(
     "reason",
     [

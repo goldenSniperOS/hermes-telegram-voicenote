@@ -296,3 +296,23 @@ def test_real_failure_is_still_retried():
     host.send_failures = 2
     make(host, Settings(retries=2)).on_llm_output(response_text="hola", platform="telegram")
     assert len(host.voices) == 1 and host.texts == []
+
+
+def test_unconfirmed_part_is_logged_and_not_reported_as_delivered(caplog):
+    from hermes_telegram_voicenote.delivery import AmbiguousDeliveryError
+
+    host = Host(audio=["/tmp/p1.ogg", "/tmp/p2.ogg"])
+    original = host._send
+
+    def first_times_out(target, path):
+        if path == "/tmp/p1.ogg":
+            raise AmbiguousDeliveryError("Timed out")
+        original(target, path)
+
+    host._send = first_times_out
+    with caplog.at_level("INFO", logger="hermes_telegram_voicenote.pipeline"):
+        make(host, Settings(retries=2)).on_llm_output(response_text="hola", platform="telegram")
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("part 1 timed out after upload; not resending" in m for m in messages)
+    assert any("1 of 2 parts unconfirmed" in m for m in messages)
+    assert not any("delivered to" in m for m in messages)
