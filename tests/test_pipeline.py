@@ -253,3 +253,70 @@ def test_retry_resumes_after_the_last_sent_part():
     make(host, Settings(retries=2)).on_llm_output(response_text="Respuesta", platform="telegram")
     assert [p for _, p in host.voices] == ["/tmp/p1.ogg", "/tmp/p2.ogg"]
     assert len(host.scripts) == 1  # no re-synthesis
+
+
+def test_ambiguous_timeout_is_not_resent():
+    # Field report: Telegram accepted the upload, the client timed out reading the
+    # reply, and every retry delivered the same voice note again.
+    from hermes_telegram_voicenote.delivery import AmbiguousDeliveryError
+
+    host = Host()
+    calls = {"n": 0}
+
+    def timed_out(target, path):
+        calls["n"] += 1
+        raise AmbiguousDeliveryError("Timed out")
+
+    host._send = timed_out
+    make(host, Settings(retries=2)).on_llm_output(response_text="hola", platform="telegram")
+    assert calls["n"] == 1
+    assert host.texts == []
+
+
+def test_ambiguous_timeout_moves_on_to_the_next_part():
+    from hermes_telegram_voicenote.delivery import AmbiguousDeliveryError
+
+    host = Host(audio=["/tmp/p1.ogg", "/tmp/p2.ogg"])
+    original = host._send
+    sent = []
+
+    def first_times_out(target, path):
+        sent.append(path)
+        if path == "/tmp/p1.ogg":
+            raise AmbiguousDeliveryError("Timed out")
+        original(target, path)
+
+    host._send = first_times_out
+    make(host, Settings(retries=2)).on_llm_output(response_text="hola", platform="telegram")
+    assert sent == ["/tmp/p1.ogg", "/tmp/p2.ogg"]
+
+
+def test_real_failure_is_still_retried():
+    host = Host()
+    host.send_failures = 2
+    make(host, Settings(retries=2)).on_llm_output(response_text="hola", platform="telegram")
+    assert len(host.voices) == 1 and host.texts == []
+
+
+def test_unconfirmed_part_is_logged_and_not_reported_as_delivered(caplog):
+    from hermes_telegram_voicenote.delivery import AmbiguousDeliveryError
+
+    host = Host(audio=["/tmp/p1.ogg", "/tmp/p2.ogg"])
+    original = host._send
+
+    def first_times_out(target, path):
+        if path == "/tmp/p1.ogg":
+            raise AmbiguousDeliveryError("Timed out")
+        original(target, path)
+
+    host._send = first_times_out
+    with caplog.at_level("INFO", logger="hermes_telegram_voicenote.pipeline"):
+        make(host, Settings(retries=2)).on_llm_output(response_text="hola", platform="telegram")
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("part 1 timed out after upload; not resending" in m for m in messages)
+    summary = [r for r in caplog.records if "1 of 2 parts unconfirmed" in r.getMessage()]
+    assert len(summary) == 1 and summary[0].levelname == "WARNING"
+    assert "(attempt 1)" in summary[0].getMessage()
+    assert not any("delivered to" in m for m in messages)
+    assert [p for _, p in host.voices] == ["/tmp/p2.ogg"]
+    assert host.texts == []
