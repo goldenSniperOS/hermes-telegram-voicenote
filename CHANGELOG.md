@@ -6,6 +6,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-10-28
+
 ### Fixed
 - A voice note arrived several times when Telegram accepted the upload but the
   client timed out reading the reply. A plain "Timed out" is now treated as
