@@ -6,6 +6,15 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- A voice note arrived several times when Telegram accepted the upload but the
+  client timed out reading the reply. A plain "Timed out" is now treated as
+  possibly delivered and is never resent. Hermes reports connect timeouts with the
+  same text, so they are not resent either, and neither is a Telegram
+  `Gateway Timeout (504)`. Pool timeouts, timeouts that name a connect timeout, and
+  other failures are still retried up to `retries` times. When a part is not
+  resent, the log says it is unconfirmed instead of delivered (#10).
+
 ## [0.5.2] - 2026-09-23
 
 ### Fixed

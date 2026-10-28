@@ -34,6 +34,27 @@ class DeliveryError(RuntimeError):
     pass
 
 
+class AmbiguousDeliveryError(DeliveryError):
+    """The upload may have reached Telegram; sending it again can duplicate it."""
+
+
+_NEVER_SENT_MARKERS = (
+    "connecttimeout",
+    "connect timeout",
+    "connect timed out",
+    "pool timeout",
+    "pooltimeout",
+)
+
+
+def _is_ambiguous(result: dict) -> bool:
+    details = " ".join(
+        [str(result.get("error", ""))] + [str(w) for w in result.get("warnings") or []]
+    ).lower()
+    timed_out = "timed out" in details or "timeout" in details
+    return timed_out and not any(marker in details for marker in _NEVER_SENT_MARKERS)
+
+
 def synthesize(
     script: str,
     *,
@@ -158,8 +179,11 @@ def send_voice(target: Target, audio_path: str) -> None:
             media_files=[(audio_path, True)],
         )
     )
-    if not isinstance(result, dict) or not result.get("success"):
-        raise DeliveryError(f"Send failed: {result}")
+    if isinstance(result, dict) and result.get("success"):
+        return
+    if isinstance(result, dict) and _is_ambiguous(result):
+        raise AmbiguousDeliveryError(f"Send timed out after upload: {result}")
+    raise DeliveryError(f"Send failed: {result}")
 
 
 def send_text(target: Target, message: str) -> None:
