@@ -6,6 +6,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Hermes refused to install or enable the plugin: it resolves every optional extra,
+  and the `dev` extra's `pytest<9` conflicted with Hermes' `pytest==9.1.1`. The `dev`
+  extra no longer has upper bounds (`pytest>=8`, `ruff>=0.6`, `pyyaml>=6`), and the
+  suite passes on pytest 9 (#11).
+
 ## [0.5.3] - 2026-10-28
 
 ### Fixed
