@@ -6,6 +6,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-10-29
+
 ### Fixed
 - Hermes refused to install or enable the plugin: it resolves every optional extra,
   and the `dev` extra's `pytest<9` conflicted with Hermes' `pytest==9.1.1`. The `dev`
